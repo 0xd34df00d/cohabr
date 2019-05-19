@@ -18,7 +18,7 @@ parseComments = undefined
 
 (@@) :: Cursor -> Name -> Either String T.Text
 cur @@ name | [val] <- attrs = pure val
-            | otherwise = Left $ "unexpected attribute contents for " <> show name <> ": " <> show attrs
+            | otherwise = Left [i|unexpected attribute contents for #{name}: #{attrs}|]
   where attrs = attribute name cur
 
 (@@^) :: Either String Cursor -> Name -> Either String T.Text
@@ -26,7 +26,7 @@ mcur @@^ name = mcur >>= (@@ name)
 
 (@>) :: Cursor -> [JQSelector] -> Either String Cursor
 cur @> expr | (sub:_) <- queryT expr cur = pure sub
-            | otherwise = Left $ "nothing found for expression " <> show expr
+            | otherwise = Left [i|nothing found for expression #{expr}|]
 
 readInt :: T.Text -> Either String Int
 readInt text = do
