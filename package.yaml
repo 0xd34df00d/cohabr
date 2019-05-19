@@ -24,6 +24,7 @@ dependencies:
 - bytestring
 - dom-selector
 - html-conduit
+- interpolate
 - text
 - xml-conduit
 
