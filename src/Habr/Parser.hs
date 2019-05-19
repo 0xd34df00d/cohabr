@@ -4,6 +4,7 @@ module Habr.Parser where
 
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
+import Data.String.Interpolate
 import Text.XML
 import Text.XML.Cursor
 import Text.XML.Scraping
