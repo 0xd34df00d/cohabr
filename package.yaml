@@ -30,6 +30,9 @@ dependencies:
 library:
   source-dirs: src
 
+ghc-options:
+- -Wall
+
 executables:
   cohabr-exe:
     main:                Main.hs
