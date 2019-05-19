@@ -14,6 +14,7 @@ data UserInfo = UserInfo
 
 data Comment = Comment
   { commentId :: Int
+  , parentId :: Int
   , user :: UserInfo
   , votes :: Votes
   , commentText :: TL.Text
