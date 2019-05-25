@@ -46,8 +46,8 @@ readInt :: T.Text -> Either String Int
 readInt text = do
   (val, rest) <- T.decimal text
   if T.null rest
-    then Left [i|unable to parse `#{text}` as int|]
-    else pure val
+    then pure val
+    else Left [i|unable to parse `#{text}` as int|]
 
 parseSingleComment :: Cursor -> Either String Comment
 parseSingleComment cur = do
