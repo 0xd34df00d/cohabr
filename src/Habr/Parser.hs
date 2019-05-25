@@ -3,6 +3,7 @@
 module Habr.Parser where
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Read as T
 import Data.String.Interpolate
 import Text.XML
@@ -39,6 +40,6 @@ parseSingleComment :: Cursor -> Either String Comment
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
-  commentText <- innerHtml <$> (cur @> [jq| div.comment__message |])
+  commentText <- TL.toStrict . innerHtml <$> (cur @> [jq| div.comment__message |])
   let children = []
   pure Comment { .. }
