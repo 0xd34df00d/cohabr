@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings, ApplicativeDo, QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, ApplicativeDo, QuasiQuotes, TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Habr.Parser where
@@ -9,9 +9,13 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Read as T
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.Reader
 import Data.Either.Combinators
 import Data.Maybe
 import Data.String.Interpolate
+import Data.Time.Calendar
+import Data.Time.Clock
+import Data.Time.Format(defaultTimeLocale, months, parseTimeM)
 import Text.XML
 import Text.XML.Cursor
 import Text.XML.Scraping
@@ -81,3 +85,37 @@ parseCommentVotes cur = do
   pos <- readInt $ T.tail posStr
   neg <- readInt $ T.tail negStr
   pure Votes { .. }
+
+parseCommentTimestamp :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m UTCTime
+parseCommentTimestamp cur = do
+  text <- innerHtml <$> (cur @> [jq| time |])
+  parse $ TL.unpack <$> TL.words text
+  where
+    parse [marker, _, timeStr] = do
+      time <- parseTime timeStr
+      diff <- case marker of
+                   "сегодня" -> pure 0
+                   "вчера"   -> pure $ negate 1
+                   _         -> throwError [i|unknown date marker `#{marker}`|]
+      curDay <- reader $ utctDay . currentTime
+      pure UTCTime { utctDay = addDays diff curDay, utctDayTime = time }
+    parse ws = parseTimeM False locale "%m %b %Y в %H:%M" $ unwords ws
+
+    parseTime [h1, h2, ':', m1, m2] = pure $ secondsToDiffTime $ read [h1, h2] * 60 + read [m1, m2]
+    parseTime str = throwError [i|unable to parse time string `#{str}`|]
+
+    locale = defaultTimeLocale
+             { months = (, "") <$> [ "января"
+                                   , "февраля"
+                                   , "марта"
+                                   , "апреля"
+                                   , "мая"
+                                   , "июня"
+                                   , "июля"
+                                   , "августа"
+                                   , "сентября"
+                                   , "октября"
+                                   , "ноября"
+                                   , "декабря"
+                                   ]
+             }
