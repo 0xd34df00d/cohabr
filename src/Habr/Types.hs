@@ -1,6 +1,7 @@
 module Habr.Types where
 
 import qualified Data.Text as T
+import Data.Time.Clock
 
 data Votes = Votes
   { pos :: Int
@@ -23,5 +24,6 @@ data Comment = Comment
   , user :: UserInfo
   , votes :: Votes
   , commentText :: T.Text
+  , timestamp :: UTCTime
   , children :: [Comment]
   } deriving (Eq, Ord, Show)
