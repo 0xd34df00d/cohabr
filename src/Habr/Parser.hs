@@ -72,8 +72,8 @@ parseSingleComment cur = do
 
 parseCommentUser :: MonadError String m => Cursor -> m UserInfo
 parseCommentUser cur = do
-  username <- cur @> [jq| a.user-info |] @@^ "data-user-login"
-  avatar <- liftEither $ maybeToRight "Unable to parse image" $ msum [defaultImg, userImg]
+  username <- TL.toStrict . innerHtml <$> cur @> [jq| span.user-info__nickname |]
+  avatar <- liftEither $ maybeToRight "unable to parse image" $ msum [defaultImg, userImg]
   pure UserInfo { .. }
   where
     defaultImg = DefaultAvatar . TL.toStrict . toHtml <$> rightToMaybe (cur @> [jq|svg|])
