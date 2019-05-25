@@ -1,6 +1,6 @@
 module Habr.Types where
 
-import qualified Data.Text.Lazy as TL
+import qualified Data.Text as T
 
 data Votes = Votes
   { pos :: Int
@@ -8,8 +8,8 @@ data Votes = Votes
   } deriving (Eq, Ord, Show)
 
 data UserInfo = UserInfo
-  { username :: TL.Text
-  , avatarLink :: TL.Text
+  { username :: T.Text
+  , avatar :: T.Text
   } deriving (Eq, Ord, Show)
 
 data Comment = Comment
@@ -17,6 +17,6 @@ data Comment = Comment
   , parentId :: Int
   , user :: UserInfo
   , votes :: Votes
-  , commentText :: TL.Text
+  , commentText :: T.Text
   , children :: [Comment]
   } deriving (Eq, Ord, Show)
