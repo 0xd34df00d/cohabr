@@ -27,6 +27,7 @@ dependencies:
 - either
 - html-conduit
 - interpolate
+- mtl
 - text
 - xml-conduit
 
