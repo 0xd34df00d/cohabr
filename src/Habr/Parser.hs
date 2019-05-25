@@ -64,14 +64,14 @@ parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
   commentText <- TL.toStrict . innerHtml <$> (cur @> [jq| div.comment__message |])
-  user <- parseCommentUser cur
+  user <- parseUser cur
   votes <- parseCommentVotes cur
   timestamp <- parseCommentTimestamp cur
   let children = []
   pure Comment { .. }
 
-parseCommentUser :: MonadError String m => Cursor -> m UserInfo
-parseCommentUser cur = do
+parseUser :: MonadError String m => Cursor -> m UserInfo
+parseUser cur = do
   username <- TL.toStrict . innerHtml <$> cur @> [jq| span.user-info__nickname |]
   avatar <- liftEither $ maybeToRight "unable to parse image" $ msum [defaultImg, userImg]
   pure UserInfo { .. }
