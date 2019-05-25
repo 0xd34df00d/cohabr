@@ -28,7 +28,7 @@ data ParseContext = ParseContext
   { currentTime :: UTCTime
   } deriving (Eq, Ord, Show)
 
-parseComments :: MonadError String m => Cursor -> m [Comment]
+parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
 buildTree :: [Comment] -> [Comment]
@@ -59,13 +59,14 @@ readInt text = do
     then pure val
     else throwError [i|unable to parse `#{text}` as int|]
 
-parseSingleComment :: MonadError String m => Cursor -> m Comment
+parseSingleComment :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m Comment
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
   commentText <- TL.toStrict . innerHtml <$> (cur @> [jq| div.comment__message |])
   user <- parseCommentUser cur
   votes <- parseCommentVotes cur
+  timestamp <- parseCommentTimestamp cur
   let children = []
   pure Comment { .. }
 
