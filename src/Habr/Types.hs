@@ -7,9 +7,14 @@ data Votes = Votes
   , neg :: Int
   } deriving (Eq, Ord, Show)
 
+data Avatar
+  = DefaultAvatar { svgElem :: T.Text }
+  | CustomAvatar { avatarLink :: T.Text }
+  deriving (Eq, Ord, Show)
+
 data UserInfo = UserInfo
   { username :: T.Text
-  , avatar :: T.Text
+  , avatar :: Avatar
   } deriving (Eq, Ord, Show)
 
 data Comment = Comment
