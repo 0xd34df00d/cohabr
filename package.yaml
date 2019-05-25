@@ -29,6 +29,7 @@ dependencies:
 - interpolate
 - mtl
 - text
+- time
 - xml-conduit
 
 library:
