@@ -2,11 +2,13 @@
 
 module Habr.Parser where
 
+import qualified Data.IntMap as IM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Read as T
 import Control.Monad
 import Data.Either.Combinators
+import Data.Maybe
 import Data.String.Interpolate
 import Text.XML
 import Text.XML.Cursor
@@ -17,7 +19,16 @@ import Text.XML.Selector.Types
 import Habr.Types
 
 parseComments :: Cursor -> Either String [Comment]
-parseComments = undefined
+parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
+
+buildTree :: [Comment] -> [Comment]
+buildTree comments = go 0
+  where
+    cid2comment = IM.fromList [(commentId c, c) | c <- comments]
+    idsTree = IM.fromListWith (<>) [(parentId, [commentId]) | Comment { .. } <- comments]
+    go pid = [ (cid2comment IM.! thisId) { children = go thisId }
+             | thisId <- fromMaybe [] $ IM.lookup pid idsTree
+             ]
 
 (@@) :: Cursor -> Name -> Either String T.Text
 cur @@ name | [val] <- attrs = pure val
