@@ -20,6 +20,10 @@ import Text.XML.Selector.Types
 
 import Habr.Types
 
+data ParseContext = ParseContext
+  { currentTime :: UTCTime
+  } deriving (Eq, Ord, Show)
+
 parseComments :: MonadError String m => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
