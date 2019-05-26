@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings, ApplicativeDo, QuasiQuotes, TupleSections #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, QuasiQuotes, TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Habr.Parser where
