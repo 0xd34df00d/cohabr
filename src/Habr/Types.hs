@@ -1,3 +1,5 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module Habr.Types where
 
 import qualified Data.Text as T
@@ -26,4 +28,17 @@ data Comment = Comment
   , commentText :: T.Text
   , timestamp :: UTCTime
   , children :: [Comment]
+  } deriving (Eq, Ord, Show)
+
+data Classifier = Classifier
+  { name :: T.Text
+  , link :: T.Text
+  } deriving (Eq, Ord, Show)
+
+data Post = Post
+  { title :: T.Text
+  , body :: T.Text
+  , hubs :: [Classifier]
+  , tags :: [Classifier]
+  , user :: UserInfo
   } deriving (Eq, Ord, Show)
