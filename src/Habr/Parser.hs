@@ -57,6 +57,8 @@ parsePostTime root = do
 parsePostStats :: MonadError String m => Cursor -> m PostStats
 parsePostStats cur = do
   votes <- parseVotes cur
+  bookmarks <- cur @>. [jq|.js-favs_count|] >>= readInt
+  views <- cur @>. [jq|.post-stats__views-count|] >>= readInt
   pure PostStats { .. }
 
 parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]

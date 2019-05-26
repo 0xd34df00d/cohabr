@@ -37,6 +37,8 @@ data Classifier = Classifier
 
 data PostStats = PostStats
   { votes :: Votes
+  , bookmarks :: Int
+  , views :: Int
   } deriving (Eq, Ord, Show)
 
 data Post = Post
