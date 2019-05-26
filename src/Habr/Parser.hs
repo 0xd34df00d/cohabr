@@ -19,7 +19,7 @@ import Data.Maybe
 import Data.String.Interpolate
 import Data.Time.Calendar
 import Data.Time.Clock
-import Data.Time.Format(defaultTimeLocale, months, parseTimeM)
+import Data.Time.Format(defaultTimeLocale, months, parseTimeM, iso8601DateFormat)
 import Text.XML
 import Text.XML.Cursor
 import Text.XML.Scraping
@@ -39,12 +39,19 @@ parsePost root = do
   hubs <- parseClassifier [jq|.hub-link|]
   tags <- parseClassifier [jq|.post__tag|]
   user <- root @> [jq|.post__meta|] >>= parseUser
+  timestamp <- parsePostTime root
   pure Post { .. }
   where
     parseClassifier query = forM (queryT query root) $ \cur -> do
       link <- cur @@ "href"
       let name = TL.toStrict $ innerHtml cur
       pure Classifier { .. }
+
+-- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
+parsePostTime :: MonadError String m => Cursor -> m UTCTime
+parsePostTime root = do
+  timeText <- root @> [jq|.post__time|] @@^ "data-time_published"
+  parseTimeM False defaultTimeLocale (iso8601DateFormat $ Just "%H:%MZ") $ T.unpack timeText
 
 parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)

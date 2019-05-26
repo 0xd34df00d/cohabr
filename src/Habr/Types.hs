@@ -41,4 +41,5 @@ data Post = Post
   , hubs :: [Classifier]
   , tags :: [Classifier]
   , user :: UserInfo
+  , timestamp :: UTCTime
   } deriving (Eq, Ord, Show)
