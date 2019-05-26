@@ -90,7 +90,7 @@ parseSingleComment cur = do
   commentId <- cur @@ "rel" >>= readInt
   commentText <- TL.toStrict . innerHtml <$> (cur @> [jq| div.comment__message |])
   user <- parseUser cur
-  votes <- parseCommentVotes cur
+  votes <- parseVotes cur
   timestamp <- parseCommentTimestamp cur
   let children = []
   pure Comment { .. }
@@ -104,8 +104,8 @@ parseUser cur = do
     defaultImg = DefaultAvatar . TL.toStrict . toHtml <$> rightToMaybe (cur @> [jq|svg|])
     userImg = CustomAvatar <$> rightToMaybe (cur @> [jq|img.user-info__image-pic|] @@^ "src")
 
-parseCommentVotes :: MonadError String m => Cursor -> m Votes
-parseCommentVotes cur = do
+parseVotes :: MonadError String m => Cursor -> m Votes
+parseVotes cur = do
   text <- cur @> [jq|span.voting-wjt__counter|] @@^ "title"
   let (negStr : _ : posStr : _) = reverse $ T.words text
   pos <- readInt $ T.tail posStr
