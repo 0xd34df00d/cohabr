@@ -28,7 +28,7 @@ import Text.XML.Selector.Types
 
 import Habr.Types
 
-data ParseContext = ParseContext
+newtype ParseContext = ParseContext
   { currentTime :: UTCTime
   } deriving (Eq, Ord, Show)
 
