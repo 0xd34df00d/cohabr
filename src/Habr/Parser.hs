@@ -1,7 +1,11 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings, QuasiQuotes, TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Habr.Parser where
+module Habr.Parser
+( ParseContext(..)
+, parseComments
+, parsePost
+) where
 
 import qualified Data.IntMap as IM
 import qualified Data.Text as T
