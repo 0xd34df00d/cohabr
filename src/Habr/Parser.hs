@@ -28,6 +28,20 @@ data ParseContext = ParseContext
   { currentTime :: UTCTime
   } deriving (Eq, Ord, Show)
 
+parsePost :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m Post
+parsePost root = do
+  title <- TL.toStrict . innerHtml <$> root @> [jq|span.post__title-text|]
+  body <- TL.toStrict . innerHtml <$> root @> [jq|div.post__text|]
+  hubs <- parseClassifier [jq|.hub-link|]
+  tags <- parseClassifier [jq|.post__tag|]
+  user <- root @> [jq|.post__meta|] >>= parseUser
+  pure Post { .. }
+  where
+    parseClassifier query = forM (queryT query root) $ \cur -> do
+      link <- cur @@ "href"
+      let name = TL.toStrict $ innerHtml cur
+      pure Classifier { .. }
+
 parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
