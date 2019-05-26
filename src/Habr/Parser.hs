@@ -40,6 +40,7 @@ parsePost root = do
   tags <- parseClassifier [jq|.post__tag|]
   user <- root @> [jq|.post__meta|] >>= parseUser
   timestamp <- parsePostTime root
+  postStats <- root @> [jq|.post-stats|] >>= parsePostStats
   pure Post { .. }
   where
     parseClassifier query = forM (queryT query root) $ \cur -> do
@@ -52,6 +53,11 @@ parsePostTime :: MonadError String m => Cursor -> m UTCTime
 parsePostTime root = do
   timeText <- root @> [jq|.post__time|] @@^ "data-time_published"
   parseTimeM False defaultTimeLocale (iso8601DateFormat $ Just "%H:%MZ") $ T.unpack timeText
+
+parsePostStats :: MonadError String m => Cursor -> m PostStats
+parsePostStats cur = do
+  votes <- parseVotes cur
+  pure PostStats { .. }
 
 parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)

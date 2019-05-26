@@ -35,6 +35,10 @@ data Classifier = Classifier
   , link :: T.Text
   } deriving (Eq, Ord, Show)
 
+data PostStats = PostStats
+  { votes :: Votes
+  } deriving (Eq, Ord, Show)
+
 data Post = Post
   { title :: T.Text
   , body :: T.Text
@@ -42,4 +46,5 @@ data Post = Post
   , tags :: [Classifier]
   , user :: UserInfo
   , timestamp :: UTCTime
+  , postStats :: PostStats
   } deriving (Eq, Ord, Show)
