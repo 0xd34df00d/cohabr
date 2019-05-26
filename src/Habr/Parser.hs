@@ -34,8 +34,8 @@ data ParseContext = ParseContext
 
 parsePost :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m Post
 parsePost root = do
-  title <- TL.toStrict . innerHtml <$> root @> [jq|span.post__title-text|]
-  body <- TL.toStrict . innerHtml <$> root @> [jq|div.post__text|]
+  title <- root @>. [jq|span.post__title-text|]
+  body <- root @>. [jq|div.post__text|]
   hubs <- parseClassifier [jq|.hub-link|]
   tags <- parseClassifier [jq|.post__tag|]
   user <- root @> [jq|.post__meta|] >>= parseUser
@@ -83,6 +83,9 @@ mcur @@^ name = mcur >>= (@@ name)
 cur @> expr | (sub:_) <- queryT expr cur = pure sub
             | otherwise = throwError [i|nothing found for expression #{expr}|]
 
+(@>.) :: MonadError String m => Cursor -> [JQSelector] -> m T.Text
+cur @>. expr = TL.toStrict . innerHtml <$> cur @> expr
+
 readInt :: MonadError String m => T.Text -> m Int
 readInt text = do
   (val, rest) <- liftEither $ T.decimal text
@@ -94,7 +97,7 @@ parseSingleComment :: (MonadReader ParseContext m, MonadError String m) => Curso
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
-  commentText <- TL.toStrict . innerHtml <$> (cur @> [jq| div.comment__message |])
+  commentText <- cur @>. [jq| div.comment__message |]
   user <- parseUser cur
   votes <- parseVotes cur
   timestamp <- parseCommentTimestamp cur
@@ -103,7 +106,7 @@ parseSingleComment cur = do
 
 parseUser :: MonadError String m => Cursor -> m UserInfo
 parseUser cur = do
-  username <- TL.toStrict . innerHtml <$> cur @> [jq| span.user-info__nickname |]
+  username <- cur @>. [jq| span.user-info__nickname |]
   avatar <- liftEither $ maybeToRight "unable to parse image" $ msum [defaultImg, userImg]
   pure UserInfo { .. }
   where
@@ -120,8 +123,8 @@ parseVotes cur = do
 
 parseCommentTimestamp :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m UTCTime
 parseCommentTimestamp cur = do
-  text <- innerHtml <$> (cur @> [jq| time |])
-  parse $ TL.unpack <$> TL.words text
+  text <- cur @>. [jq| time |]
+  parse $ T.unpack <$> T.words text
   where
     parse [marker, _, timeStr] = do
       time <- parseTime timeStr
