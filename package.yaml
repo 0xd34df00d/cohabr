@@ -28,6 +28,7 @@ dependencies:
 - html-conduit
 - interpolate
 - mtl
+- opaleye
 - text
 - time
 - xml-conduit
