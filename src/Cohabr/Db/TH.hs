@@ -2,7 +2,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Cohabr.Db.TH where
+module Cohabr.Db.TH
+( makeTFAdaptorAndInstance
+) where
 
 import Data.Generics.Uniplate.Data
 import Data.List
