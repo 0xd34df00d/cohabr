@@ -12,7 +12,8 @@ import qualified Data.Profunctor.Product.Default as D
 import Data.Profunctor.Product.Default(Default)
 import Data.Tuple.Select
 import Language.Haskell.TH
-import Opaleye.TypeFamilies((:<$>), (:<*>))
+import qualified Opaleye.Map as M
+import Opaleye.TypeFamilies(F, IMap, (:<$>), (:<*>))
 
 makeTFAdaptorAndInstance :: String -> Name -> Q [Dec]
 makeTFAdaptorAndInstance funName tyName = reify tyName >>= \case
@@ -26,11 +27,12 @@ handleTyConDec funName (DataD _ tyName [tyVar] _ [con] _) = handleTyConCon funNa
 handleTyConDec _ _ = fail "Type shall have a single constructor and a single type variable"
 
 handleTyConCon :: String -> Name -> Name -> Con -> Q [Dec]
-handleTyConCon funName tyName tyVarName (RecC conName vars) = pure [ instDec, sigDec, funDec ]
+handleTyConCon funName tyName tyVarName (RecC conName vars) = pure [instDec, sigDec, funDec, tyInstDec]
   where
     funName' = mkName funName
     instDec = makeInstanceDec funName' tyName tyVarName conName $ sel3 <$> vars
     (sigDec, funDec) = makeFunDec funName' tyName conName vars
+    tyInstDec = makeTyInstDec tyName
 handleTyConCon _ _ _ _ = fail "Unsupported constructor type (only non-GADT records are supported)"
 
 makeInstanceDec :: Name -> Name -> Name -> Name -> [Type] -> Dec
@@ -71,3 +73,10 @@ makeFunDec funName tyName conName vars = (sigDec, funDec)
            | varName <- sel1 <$> vars
            ]
     funExp = foldl (\l (op, r) -> InfixE (Just l) (VarE op) (Just r)) (ConE conName) $ zip ops args
+
+makeTyInstDec :: Name -> Dec
+makeTyInstDec tyName = TySynInstD ''M.Map $ TySynEqn [g, tyAppLhs] tyAppRhs
+  where
+    [g, f] = VarT . mkName <$> ["g", "f"]
+    tyAppLhs = ConT tyName `AppT` (ConT ''F `AppT` f)
+    tyAppRhs = ConT tyName `AppT` (ConT ''F `AppT` (ConT ''IMap `AppT` g `AppT` f))
