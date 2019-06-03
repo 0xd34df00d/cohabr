@@ -29,8 +29,11 @@ dependencies:
 - interpolate
 - mtl
 - opaleye
+- product-profunctors
+- template-haskell
 - text
 - time
+- uniplate
 - xml-conduit
 
 library:
