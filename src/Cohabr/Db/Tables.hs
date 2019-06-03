@@ -14,17 +14,17 @@ import Cohabr.Db.TH
 
 data Comment f = Comment
   { commentId   :: TableField f Int     SqlInt4       NN Req
-  , sourceId    :: TableField f Int     SqlInt4       NN Req
-  , parentId    :: TableField f Int     SqlInt4       NN Req
-  , postId      :: TableField f Int     SqlInt4       NN Req
-  , user        :: TableField f String  SqlText       NN Req
-  , date        :: TableField f UTCTime SqlTimestamp  NN Req
-  , text        :: TableField f T.Text  SqlText       NN Req
-  , changed     :: TableField f Bool    SqlBool       NN Req
-  , scorePlus   :: TableField f Double  SqlFloat8     NN Req
-  , scoreMinus  :: TableField f Double  SqlFloat8     NN Req
-  , deleted     :: TableField f Bool    SqlBool       NN Req
-  , author      :: TableField f Int     SqlInt4       NN Req
+  , sourceId    :: TableField f Int     SqlInt4       N  Req
+  , parentId    :: TableField f Int     SqlInt4       N  Req
+  , postId      :: TableField f Int     SqlInt4       N  Req
+  , user        :: TableField f String  SqlText       N  Req
+  , date        :: TableField f UTCTime SqlTimestamp  N  Req
+  , text        :: TableField f T.Text  SqlText       N  Req
+  , changed     :: TableField f Bool    SqlBool       N  Req
+  , scorePlus   :: TableField f Double  SqlFloat8     N  Req
+  , scoreMinus  :: TableField f Double  SqlFloat8     N  Req
+  , deleted     :: TableField f Bool    SqlBool       N  Req
+  , author      :: TableField f Int     SqlInt4       N  Req
   }
 
 $(makeTFAdaptorAndInstance "pComment" ''Comment)
