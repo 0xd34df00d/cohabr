@@ -33,6 +33,7 @@ dependencies:
 - template-haskell
 - text
 - time
+- tuple
 - uniplate
 - xml-conduit
 
