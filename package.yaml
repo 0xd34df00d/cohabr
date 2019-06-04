@@ -55,7 +55,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - async
     - cohabr
+    - fixed-timestep
+    - http-conduit
 
 tests:
   cohabr-test:
