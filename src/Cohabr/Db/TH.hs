@@ -20,7 +20,7 @@ import Opaleye.TypeFamilies(F, IMap, (:<$>), (:<*>))
 makeTFAdaptorAndInstance :: String -> Name -> Q [Dec]
 makeTFAdaptorAndInstance funName tyName = reify tyName >>= \case
   TyConI dec -> handleTyConDec funName dec
-  _ -> fail "unsupported type"
+  _ -> fail "Unsupported type"
 
 handleTyConDec :: String -> Dec -> Q [Dec]
 handleTyConDec funName (DataD _ tyName [tyVar] _ [con] _) = handleTyConCon funName tyName tyVarName con
