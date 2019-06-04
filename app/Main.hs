@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes, ScopedTypeVariables #-}
 
 module Main where
 
@@ -12,11 +12,13 @@ import Control.Monad.Reader
 import Data.String.Interpolate
 import Data.Time.Clock
 import Network.HTTP.Conduit
+import Opaleye
 import Text.XML.Cursor(fromDocument)
 import Text.HTML.DOM(parseLBS)
 import Time.Repeatedly
 import System.IO
 
+import Cohabr.Db.Queries
 import Habr.Parser
 import Habr.RSS
 
@@ -39,9 +41,14 @@ updatePost postId = do
 pollRSS :: IO ()
 pollRSS = do
   rss <- simpleHttp "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
-  let channels = recentArticles rss
-  print channels
-  pure ()
+  let maybeIds = recentArticles rss
+  print maybeIds
+  case maybeIds of
+    Nothing -> undefined
+    Just ids -> do
+                  (recs :: [Int]) <- withConnection $ \conn -> runSelect conn $ selectKnownPosts ids
+                  print recs
+                  pure ()
 
 main :: IO ()
 main = do
