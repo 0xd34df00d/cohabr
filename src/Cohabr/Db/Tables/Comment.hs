@@ -1,12 +1,9 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, MultiParamTypeClasses, UndecidableInstances, TypeFamilies #-}
-
+{-# LANGUAGE TemplateHaskell, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses, UndecidableInstances, TypeFamilies #-}
 module Cohabr.Db.Tables.Comment where
+import Cohabr.Db.TH
 
 import qualified Data.Text as T
 import Data.Time.Clock
-
-import Cohabr.Db.TH
 
 data Comment f = Comment
   { commentId   :: TableField f Int     SqlInt4       NN Req
