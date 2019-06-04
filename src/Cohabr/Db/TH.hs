@@ -4,6 +4,7 @@
 
 module Cohabr.Db.TH
 ( makeTFAdaptorAndInstance
+, makeTable
 ) where
 
 import Data.Generics.Uniplate.Data
@@ -15,7 +16,8 @@ import Data.Profunctor.Product.Default(Default)
 import Data.Tuple.Select
 import Language.Haskell.TH
 import qualified Opaleye.Map as M
-import Opaleye.TypeFamilies(F, IMap, (:<$>), (:<*>))
+import Opaleye
+import Opaleye.TypeFamilies(F, W, O, IMap, (:<$>), (:<*>))
 
 makeTFAdaptorAndInstance :: String -> Name -> Q [Dec]
 makeTFAdaptorAndInstance funName tyName = reify tyName >>= \case
@@ -82,3 +84,29 @@ makeTyInstDec tyName = TySynInstD ''M.Map $ TySynEqn [g, tyAppLhs] tyAppRhs
     [g, f] = VarT . mkName <$> ["g", "f"]
     tyAppLhs = ConT tyName `AppT` (ConT ''F `AppT` f)
     tyAppRhs = ConT tyName `AppT` (ConT ''F `AppT` (ConT ''IMap `AppT` g `AppT` f))
+
+makeTable :: Name -> Name -> String -> [String] -> Q [Dec]
+makeTable tyName pFunName tableName fieldNames = reify tyName >>= \case
+  TyConI (DataD _ _ _ _ [RecC conName vars] _)
+    | length vars == length fieldNames -> pure $ makeTableDec tyName pFunName tableName fieldNames conName
+    | otherwise -> fail "Fields count mismatch"
+  _ -> fail "Unsupported type. The type shall be a type constructor with a single (non-GADT, record) constructor"
+
+makeTableDec :: Name -> Name -> String -> [String] -> Name -> [Dec]
+makeTableDec tyName pFunName tableName fieldNames conName =
+  [ SigD funName funTy
+  , FunD funName [Clause [] (NormalB funExp) []]
+  ]
+  where
+    funName = mkName $ if "Table" `isSuffixOf` tableName
+                          then tableName
+                          else tableName <> "Table"
+    tyCon = ConT tyName
+    funTy = ConT ''Table `AppT` (tyCon `AppT` ConT ''W) `AppT` (tyCon `AppT` ConT ''O)
+    funExp = VarE 'table `AppE`
+              LitE (StringL tableName) `AppE`
+              (VarE pFunName `AppE` tyVarExp)
+    tyVarExp = foldl AppE (ConE conName)
+                [ VarE 'tableField `AppE` LitE (StringL field)
+                | field <- fieldNames
+                ]
