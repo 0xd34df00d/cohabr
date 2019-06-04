@@ -5,6 +5,9 @@
 module Cohabr.Db.TH
 ( makeTFAdaptorAndInstance
 , makeTable
+, D.def
+, module Opaleye
+, module Opaleye.TypeFamilies
 ) where
 
 import Data.Generics.Uniplate.Data
@@ -17,7 +20,7 @@ import Data.Tuple.Select
 import Language.Haskell.TH
 import qualified Opaleye.Map as M
 import Opaleye
-import Opaleye.TypeFamilies(F, W, O, IMap, (:<$>), (:<*>))
+import Opaleye.TypeFamilies
 
 makeTFAdaptorAndInstance :: String -> Name -> Q [Dec]
 makeTFAdaptorAndInstance funName tyName = reify tyName >>= \case

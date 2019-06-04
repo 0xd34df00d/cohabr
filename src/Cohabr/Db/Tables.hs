@@ -3,11 +3,8 @@
 
 module Cohabr.Db.Tables where
 
-import qualified Data.Profunctor.Product.Default as D
 import qualified Data.Text as T
 import Data.Time.Clock
-import Opaleye
-import Opaleye.TypeFamilies
 
 import Cohabr.Db.TH
 
