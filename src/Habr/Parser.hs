@@ -10,7 +10,6 @@ module Habr.Parser
 import qualified Data.IntMap as IM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Read as T
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -27,6 +26,7 @@ import Text.XML.Selector.TH
 import Text.XML.Selector.Types
 
 import Habr.Types
+import Habr.Internal.Util
 
 newtype ParseContext = ParseContext
   { currentTime :: UTCTime
@@ -87,13 +87,6 @@ cur @> expr | (sub:_) <- queryT expr cur = pure sub
 
 (@>.) :: MonadError String m => Cursor -> [JQSelector] -> m T.Text
 cur @>. expr = TL.toStrict . innerHtml <$> cur @> expr
-
-readInt :: MonadError String m => T.Text -> m Int
-readInt text = do
-  (val, rest) <- liftEither $ T.decimal text
-  if T.null rest
-    then pure val
-    else throwError [i|unable to parse `#{text}` as int|]
 
 parseSingleComment :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m Comment
 parseSingleComment cur = do
