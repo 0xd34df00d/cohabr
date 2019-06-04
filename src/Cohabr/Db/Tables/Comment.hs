@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, MultiParamTypeClasses, UndecidableInstances, TypeFamilies #-}
 
-module Cohabr.Db.Tables where
+module Cohabr.Db.Tables.Comment where
 
 import qualified Data.Text as T
 import Data.Time.Clock
@@ -24,3 +24,18 @@ data Comment f = Comment
   }
 
 $(makeTFAdaptorAndInstance "pComment" ''Comment)
+$(makeTable ''Comment 'pComment "comments"
+    [ "id"
+    , "source_id"
+    , "parent"
+    , "post_id"
+    , "user"
+    , "date"
+    , "text"
+    , "changed"
+    , "score_plus"
+    , "score_minus"
+    , "deleted"
+    , "author"
+    ]
+  )
