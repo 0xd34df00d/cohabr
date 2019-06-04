@@ -8,8 +8,8 @@ import Opaleye as O
 
 import qualified Cohabr.Db.Tables.Post as P
 
-selectMissingPosts :: [Int] -> Select (Field SqlInt4)
-selectMissingPosts candidates = proc () -> do
+selectKnownPosts :: [Int] -> Select (Field SqlInt4)
+selectKnownPosts candidates = proc () -> do
   P.Post { .. } <- selectTable P.postsTable -< ()
-  restrict -< O.not $ in_ (pgInt4 <$> candidates) postId
+  restrict -< in_ (pgInt4 <$> candidates) postId
   returnA -< postId
