@@ -6,7 +6,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 
 data Comment f = Comment
-  { commentId   :: TableField f Int     SqlInt4       NN Req
+  { commentId   :: TableField f Int     SqlInt4       NN Opt
   , sourceId    :: TableField f Int     SqlInt4       N  Req
   , parentId    :: TableField f Int     SqlInt4       N  Req
   , postId      :: TableField f Int     SqlInt4       N  Req
