@@ -6,7 +6,7 @@ import Data.Time.Clock
 
 data Post f = Post
   { postId            :: TableField f Int     SqlInt4       NN Opt
-  , sourceId          :: TableField f Int     SqlInt4       N  Req
+  , sourceId          :: TableField f Int     SqlInt4       NN Req
   , sourceSite        :: TableField f String  SqlText       N  Req
   , user              :: TableField f String  SqlText       N  Req
   , published         :: TableField f UTCTime SqlTimestamp  N  Req
