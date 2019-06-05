@@ -89,6 +89,8 @@ mcur @@^ name = mcur >>= (@@ name)
 
 (@>) :: MonadError String m => Cursor -> [JQSelector] -> m Cursor
 cur @> expr | (sub:_) <- queryT expr cur = pure sub
+            | NodeElement el <- node cur
+            , let el' = el { elementNodes = [] } = throwError [i|nothing found for expression #{expr} under element #{el'}|]
             | otherwise = throwError [i|nothing found for expression #{expr}|]
 
 (@>.) :: MonadError String m => Cursor -> [JQSelector] -> m T.Text
