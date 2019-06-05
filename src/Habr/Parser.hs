@@ -135,7 +135,7 @@ parseCommentTimestamp cur = do
                    _         -> throwError [i|unknown date marker `#{marker}`|]
       curDay <- reader $ utctDay . currentTime
       pure UTCTime { utctDay = addDays diff curDay, utctDayTime = time }
-    parse ws = parseTimeM False locale "%m %b %Y в %H:%M" $ unwords ws
+    parse ws = parseTimeM False locale "%e %B %Y в %H:%M" $ unwords ws
 
     -- TODO use DiffTime parsing instance when time-1.9 is available in LTS
     parseTime [h1, h2, ':', m1, m2] = pure $ secondsToDiffTime $ read [h1, h2] * 60 + read [m1, m2]
