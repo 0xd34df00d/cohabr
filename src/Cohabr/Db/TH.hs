@@ -10,6 +10,7 @@ module Cohabr.Db.TH
 , module Opaleye.TypeFamilies
 ) where
 
+import Data.Char
 import Data.Generics.Uniplate.Data
 import Data.List
 import qualified Data.Profunctor as P
@@ -101,9 +102,7 @@ makeTableDec tyName pFunName tableName fieldNames conName =
   , FunD funName [Clause [] (NormalB funExp) []]
   ]
   where
-    funName = mkName $ if "Table" `isSuffixOf` tableName
-                          then tableName
-                          else tableName <> "Table"
+    funName = mkName $ normalizeTableName tableName
     tyCon = ConT tyName
     funTy = ConT ''Table `AppT` (tyCon `AppT` ConT ''W) `AppT` (tyCon `AppT` ConT ''O)
     funExp = VarE 'table `AppE`
@@ -113,3 +112,12 @@ makeTableDec tyName pFunName tableName fieldNames conName =
                 [ VarE 'tableField `AppE` LitE (StringL field)
                 | field <- fieldNames
                 ]
+
+normalizeTableName :: String -> String
+normalizeTableName = addSuffix . replaceUnderscores
+  where
+    addSuffix str | "Table" `isSuffixOf` str = str
+                  | otherwise = str <> "Table"
+    replaceUnderscores ('_' : ch : rest) = toUpper ch : replaceUnderscores rest
+    replaceUnderscores (ch : rest) = ch : replaceUnderscores rest
+    replaceUnderscores [] = []
