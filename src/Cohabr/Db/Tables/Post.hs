@@ -21,7 +21,7 @@ data Post f = Post
   , visible         :: TableField f Bool      SqlBool       N  Req
   , scanned         :: TableField f Bool      SqlBool       N  Opt
   , origViewsNearly :: TableField f Bool      SqlBool       N  Req
-  , currentVersion  :: TableField f Int       SqlInt4       N  Req
+  , currentVersion  :: TableField f Int       SqlInt4       NN Req
   , author          :: TableField f Int       SqlInt4       N  Req
   }
 
