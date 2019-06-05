@@ -3,14 +3,14 @@ module Cohabr.Db.Tables.PostVersion where
 import Cohabr.Db.TH
 
 import qualified Data.Text as T
-import Data.Time.Clock
+import Data.Time.LocalTime
 
 data PostVersion f = PostVersion
-  { versionId :: TableField f Int     SqlInt4       NN  Opt
-  , postId    :: TableField f Int     SqlInt4       NN  Req
-  , added     :: TableField f UTCTime SqlTimestamp  N   Req
-  , title     :: TableField f String  SqlText       N   Req
-  , content   :: TableField f T.Text  SqlText       N   Req
+  { versionId :: TableField f Int       SqlInt4       NN  Opt
+  , postId    :: TableField f Int       SqlInt4       NN  Req
+  , added     :: TableField f LocalTime SqlTimestamp  N   Req
+  , title     :: TableField f String    SqlText       N   Req
+  , content   :: TableField f T.Text    SqlText       N   Req
   }
 
 $(makeTFAdaptorAndInstance "pPostVersion" ''PostVersion)
