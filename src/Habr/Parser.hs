@@ -10,6 +10,7 @@ module Habr.Parser
 import qualified Data.IntMap as IM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -58,8 +59,13 @@ parsePostStats :: MonadError String m => Cursor -> m PostStats
 parsePostStats cur = do
   votes <- parseVotes cur
   bookmarks <- cur @>. [jq|.js-favs_count|] >>= readInt
-  views <- cur @>. [jq|.post-stats__views-count|] >>= readInt
+  views <- cur @>. [jq|.post-stats__views-count|] >>=
+              \t -> liftEither $ runExcept $ readInt t <|> readApproxInt (T.unpack t)
   pure PostStats { .. }
+
+readApproxInt :: MonadError String m => String -> m Int
+readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read [hs]
+                  | otherwise = throwError [i|#{str} is not in approximate format|]
 
 parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
