@@ -4,7 +4,6 @@
 module Main where
 
 import qualified Database.PostgreSQL.Simple as PGS
-
 import Control.Concurrent.Async
 import Control.Exception
 import Control.Monad.Except
@@ -46,7 +45,7 @@ pollRSS = do
   case maybeIds of
     Nothing -> undefined
     Just ids -> do
-                  (recs :: [Int]) <- withConnection $ \conn -> runSelect conn $ selectKnownPosts ids
+                  (recs :: [Int]) <- withConnection $ selectMissingPosts ids
                   print recs
                   pure ()
 
