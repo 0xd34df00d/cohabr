@@ -7,11 +7,12 @@ module Habr.Internal.Util
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import Control.Monad.Except
+import Data.Bifunctor
 import Data.String.Interpolate
 
-readInt :: MonadError String m => T.Text -> m Int
+readInt :: (MonadError [String] m) => T.Text -> m Int
 readInt text = do
-  (val, rest) <- liftEither $ T.decimal text
+  (val, rest) <- liftEither . first pure $ T.decimal text
   if T.null rest
     then pure val
-    else throwError [i|unable to parse `#{text}` as int|]
+    else throwError [ [i|unable to parse `#{text}` as int|] ]

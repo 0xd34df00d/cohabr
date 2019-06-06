@@ -33,7 +33,7 @@ updatePost postId = do
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
-    Left err -> hPutStrLn stderr err
+    Left err -> hPutStr stderr $ unlines err
     Right (post, comments) -> pure ()
   pure ()
 

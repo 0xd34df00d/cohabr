@@ -34,7 +34,10 @@ newtype ParseContext = ParseContext
   { currentTime :: UTCTime
   } deriving (Eq, Ord, Show)
 
-type ParseError = String
+type ParseError = [String]
+
+throwParseError :: MonadError ParseError m => String -> m a
+throwParseError = throwError . pure
 
 parsePost :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Post
 parsePost root = do
@@ -68,7 +71,7 @@ parsePostStats cur = do
 
 readApproxInt :: MonadError ParseError m => String -> m Int
 readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read [hs]
-                  | otherwise = throwError [i|#{str} is not in approximate format|]
+                  | otherwise = throwParseError [i|#{str} is not in approximate format|]
 
 parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
@@ -84,7 +87,7 @@ buildTree comments = go 0
 
 (@@) :: MonadError ParseError m => Cursor -> Name -> m T.Text
 cur @@ name | [val] <- attrs = pure val
-            | otherwise = throwError [i|unexpected attribute contents for #{name}: #{attrs}|]
+            | otherwise = throwParseError [i|unexpected attribute contents for #{name}: #{attrs}|]
   where attrs = attribute name cur
 
 (@@^) :: MonadError ParseError m => m Cursor -> Name -> m T.Text
@@ -93,8 +96,8 @@ mcur @@^ name = mcur >>= (@@ name)
 (@>) :: MonadError ParseError m => Cursor -> [JQSelector] -> m Cursor
 cur @> expr | (sub:_) <- queryT expr cur = pure sub
             | NodeElement el <- node cur
-            , let el' = el { elementNodes = [] } = throwError [i|nothing found for expression #{expr} under element #{el'}|]
-            | otherwise = throwError [i|nothing found for expression #{expr}|]
+            , let el' = el { elementNodes = [] } = throwParseError [i|nothing found for expression #{expr} under element #{el'}|]
+            | otherwise = throwParseError [i|nothing found for expression #{expr}|]
 
 (@>.) :: MonadError ParseError m => Cursor -> [JQSelector] -> m T.Text
 cur @>. expr = TL.toStrict . innerHtml <$> cur @> expr
@@ -121,7 +124,7 @@ parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftE
 parseUser :: MonadError ParseError m => Cursor -> m UserInfo
 parseUser cur = do
   username <- cur @>. [jq| span.user-info__nickname |]
-  avatar <- liftEither $ maybeToRight "unable to parse image" $ msum [defaultImg, userImg]
+  avatar <- liftEither $ maybeToRight ["unable to parse image"] $ msum [defaultImg, userImg]
   pure UserInfo { .. }
   where
     defaultImg = DefaultAvatar . TL.toStrict . toHtml <$> rightToMaybe (cur @> [jq|svg|])
@@ -145,14 +148,14 @@ parseCommentTimestamp cur = do
       diff <- case marker of
                    "сегодня" -> pure 0
                    "вчера"   -> pure $ negate 1
-                   _         -> throwError [i|unknown date marker `#{marker}`|]
+                   _         -> throwParseError [i|unknown date marker `#{marker}`|]
       curDay <- reader $ utctDay . currentTime
       pure UTCTime { utctDay = addDays diff curDay, utctDayTime = time }
     parse ws = parseTimeM False locale "%e %B %Y в %H:%M" $ unwords ws
 
     -- TODO use DiffTime parsing instance when time-1.9 is available in LTS
     parseTime [h1, h2, ':', m1, m2] = pure $ secondsToDiffTime $ read [h1, h2] * 60 + read [m1, m2]
-    parseTime str = throwError [i|unable to parse time string `#{str}`|]
+    parseTime str = throwParseError [i|unable to parse time string `#{str}`|]
 
     locale = defaultTimeLocale
              { months = (, "") <$> [ "января"
