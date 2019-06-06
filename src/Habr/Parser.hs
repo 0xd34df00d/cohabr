@@ -15,6 +15,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Either.Combinators
+import Data.Functor
 import Data.Maybe
 import Data.String.Interpolate
 import Data.Time.Calendar
@@ -100,12 +101,20 @@ parseSingleComment :: (MonadReader ParseContext m, MonadError String m) => Curso
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
-  commentText <- cur @>. [jq| div.comment__message |]
-  user <- parseUser cur
-  votes <- parseVotes cur
-  timestamp <- parseCommentTimestamp cur
+  contents <- parseCommentContents cur
   let children = []
   pure Comment { .. }
+
+parseCommentContents :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m CommentContents
+parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftEither
+  where
+    parseExisting = do
+      commentText <- cur @>. [jq| div.comment__message |]
+      user <- parseUser cur
+      votes <- parseVotes cur
+      timestamp <- parseCommentTimestamp cur
+      pure CommentExisting { .. }
+    parseDeleted = cur @> [jq|.js-comment > div.comment > div.comment__message_banned|] $> CommentDeleted
 
 parseUser :: MonadError String m => Cursor -> m UserInfo
 parseUser cur = do

@@ -20,13 +20,20 @@ data UserInfo = UserInfo
   , avatar :: Avatar
   } deriving (Eq, Ord, Show)
 
+data CommentContents
+  = CommentDeleted
+  | CommentExisting
+    { user :: UserInfo
+    , votes :: Votes
+    , commentText :: T.Text
+    , timestamp :: UTCTime
+    }
+  deriving (Eq, Ord, Show)
+
 data Comment = Comment
   { commentId :: Int
   , parentId :: Int
-  , user :: UserInfo
-  , votes :: Votes
-  , commentText :: T.Text
-  , timestamp :: UTCTime
+  , contents :: CommentContents
   , children :: [Comment]
   } deriving (Eq, Ord, Show)
 
