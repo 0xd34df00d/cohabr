@@ -34,7 +34,9 @@ newtype ParseContext = ParseContext
   { currentTime :: UTCTime
   } deriving (Eq, Ord, Show)
 
-parsePost :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m Post
+type ParseError = String
+
+parsePost :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Post
 parsePost root = do
   title <- root @>. [jq|span.post__title-text|]
   body <- root @>. [jq|div.post__text|]
@@ -51,12 +53,12 @@ parsePost root = do
       pure Classifier { .. }
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
-parsePostTime :: MonadError String m => Cursor -> m UTCTime
+parsePostTime :: MonadError ParseError m => Cursor -> m UTCTime
 parsePostTime root = do
   timeText <- root @> [jq|.post__time|] @@^ "data-time_published"
   parseTimeM False defaultTimeLocale (iso8601DateFormat $ Just "%H:%MZ") $ T.unpack timeText
 
-parsePostStats :: MonadError String m => Cursor -> m PostStats
+parsePostStats :: MonadError ParseError m => Cursor -> m PostStats
 parsePostStats cur = do
   votes <- parseVotes cur
   bookmarks <- cur @>. [jq|.js-favs_count|] >>= readInt
@@ -64,11 +66,11 @@ parsePostStats cur = do
               \t -> liftEither $ runExcept $ readInt t <|> readApproxInt (T.unpack t)
   pure PostStats { .. }
 
-readApproxInt :: MonadError String m => String -> m Int
+readApproxInt :: MonadError ParseError m => String -> m Int
 readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read [hs]
                   | otherwise = throwError [i|#{str} is not in approximate format|]
 
-parseComments :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m [Comment]
+parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m [Comment]
 parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
 buildTree :: [Comment] -> [Comment]
@@ -80,24 +82,24 @@ buildTree comments = go 0
              | thisId <- fromMaybe [] $ IM.lookup pid idsTree
              ]
 
-(@@) :: MonadError String m => Cursor -> Name -> m T.Text
+(@@) :: MonadError ParseError m => Cursor -> Name -> m T.Text
 cur @@ name | [val] <- attrs = pure val
             | otherwise = throwError [i|unexpected attribute contents for #{name}: #{attrs}|]
   where attrs = attribute name cur
 
-(@@^) :: MonadError String m => m Cursor -> Name -> m T.Text
+(@@^) :: MonadError ParseError m => m Cursor -> Name -> m T.Text
 mcur @@^ name = mcur >>= (@@ name)
 
-(@>) :: MonadError String m => Cursor -> [JQSelector] -> m Cursor
+(@>) :: MonadError ParseError m => Cursor -> [JQSelector] -> m Cursor
 cur @> expr | (sub:_) <- queryT expr cur = pure sub
             | NodeElement el <- node cur
             , let el' = el { elementNodes = [] } = throwError [i|nothing found for expression #{expr} under element #{el'}|]
             | otherwise = throwError [i|nothing found for expression #{expr}|]
 
-(@>.) :: MonadError String m => Cursor -> [JQSelector] -> m T.Text
+(@>.) :: MonadError ParseError m => Cursor -> [JQSelector] -> m T.Text
 cur @>. expr = TL.toStrict . innerHtml <$> cur @> expr
 
-parseSingleComment :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m Comment
+parseSingleComment :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Comment
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
@@ -105,7 +107,7 @@ parseSingleComment cur = do
   let children = []
   pure Comment { .. }
 
-parseCommentContents :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m CommentContents
+parseCommentContents :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m CommentContents
 parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftEither
   where
     parseExisting = do
@@ -116,7 +118,7 @@ parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftE
       pure CommentExisting { .. }
     parseDeleted = cur @> [jq|.js-comment > div.comment > div.comment__message_banned|] $> CommentDeleted
 
-parseUser :: MonadError String m => Cursor -> m UserInfo
+parseUser :: MonadError ParseError m => Cursor -> m UserInfo
 parseUser cur = do
   username <- cur @>. [jq| span.user-info__nickname |]
   avatar <- liftEither $ maybeToRight "unable to parse image" $ msum [defaultImg, userImg]
@@ -125,7 +127,7 @@ parseUser cur = do
     defaultImg = DefaultAvatar . TL.toStrict . toHtml <$> rightToMaybe (cur @> [jq|svg|])
     userImg = CustomAvatar <$> rightToMaybe (cur @> [jq|img.user-info__image-pic|] @@^ "src")
 
-parseVotes :: MonadError String m => Cursor -> m Votes
+parseVotes :: MonadError ParseError m => Cursor -> m Votes
 parseVotes cur = do
   text <- cur @> [jq|span.voting-wjt__counter|] @@^ "title"
   let (negStr : _ : posStr : _) = reverse $ T.words text
@@ -133,7 +135,7 @@ parseVotes cur = do
   neg <- readInt $ T.tail negStr
   pure Votes { .. }
 
-parseCommentTimestamp :: (MonadReader ParseContext m, MonadError String m) => Cursor -> m UTCTime
+parseCommentTimestamp :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m UTCTime
 parseCommentTimestamp cur = do
   text <- cur @>. [jq| time |]
   parse $ T.unpack <$> T.words text
