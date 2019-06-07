@@ -29,6 +29,8 @@ dependencies:
 - hashable
 - html-conduit
 - interpolate
+- microlens
+- microlens-th
 - mtl
 - opaleye
 - postgresql-simple
