@@ -8,9 +8,9 @@ import Data.Time.LocalTime
 data PostVersion f = PostVersion
   { versionId :: TableField f Int       SqlInt4       NN  Opt
   , postId    :: TableField f Int       SqlInt4       NN  Req
-  , added     :: TableField f LocalTime SqlTimestamp  N   Req
+  , added     :: TableField f LocalTime SqlTimestamp  NN  Req
   , title     :: TableField f String    SqlText       N   Req
-  , content   :: TableField f T.Text    SqlText       N   Req
+  , content   :: TableField f T.Text    SqlText       NN  Req
   }
 
 $(makeTFAdaptorAndInstance "pPostVersion" ''PostVersion)
