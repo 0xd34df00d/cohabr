@@ -45,8 +45,10 @@ data Classifier = Classifier
   , link :: T.Text
   } deriving (Eq, Ord, Show)
 
-data PostViews = ExactViews Int | ApproxViews Int
-  deriving (Eq, Ord, Show)
+data PostViews = PostViews
+  { isExactCount :: Bool
+  , viewsCount :: Int
+  } deriving (Eq, Ord, Show)
 
 data PostStats = PostStats
   { votes :: Votes
