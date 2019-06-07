@@ -48,11 +48,24 @@ data PostStats = PostStats
   , views :: Int
   } deriving (Eq, Ord, Show)
 
+data Tag = Tag
+  { name :: T.Text
+  , link :: T.Text
+  } deriving (Eq, Ord, Show)
+
+data HubKind = NormalHub | CompanyHub deriving (Eq, Ord, Show)
+
+data Hub = Hub
+  { hubCode :: T.Text
+  , hubName :: T.Text
+  , hubKind :: HubKind
+  } deriving (Eq, Ord, Show)
+
 data Post = Post
   { title :: T.Text
   , body :: T.Text
-  , hubs :: [Classifier]
-  , tags :: [Classifier]
+  , hubs :: [Hub]
+  , tags :: [Tag]
   , user :: UserInfo
   , timestamp :: UTCTime
   , postStats :: PostStats

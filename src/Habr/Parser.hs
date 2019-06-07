@@ -43,17 +43,30 @@ parsePost :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> 
 parsePost root = do
   title <- root @>. [jq|span.post__title-text|]
   body <- root @>. [jq|div.post__text|]
-  hubs <- parseClassifier [jq|.hub-link|]
-  tags <- parseClassifier [jq|.post__tag|]
+  hubs <- parseHubs root
+  tags <- parseTags root
   user <- root @> [jq|.post__meta|] >>= parseUser
   timestamp <- parsePostTime root
   postStats <- root @> [jq|.post-stats|] >>= parsePostStats
   pure Post { .. }
+
+parseHubs :: MonadError ParseError m => Cursor -> m [Hub]
+parseHubs root = forM (queryT [jq|.hub-link|] root) $ \cur -> do
+  link <- cur @@ "href"
+  let hubName = TL.toStrict $ innerHtml cur
+  (hubCode, hubKind) <- analyzeLink $ reverseLinkParts link
+  pure Hub { .. }
   where
-    parseClassifier query = forM (queryT query root) $ \cur -> do
-      link <- cur @@ "href"
-      let name = TL.toStrict $ innerHtml cur
-      pure Classifier { .. }
+    analyzeLink (_ : hubCode : kindStr : _) | kindStr == "company" = pure (hubCode, CompanyHub)
+                                            | kindStr == "hub" = pure (hubCode, NormalHub)
+                                            | otherwise = throwParseError [i|unknown hub type: #{kindStr}|]
+    analyzeLink parts = throwParseError [i|unknown hub link format: #{parts}|]
+
+parseTags :: MonadError ParseError m => Cursor -> m [Tag]
+parseTags root = forM (queryT [jq|.post_tag|] root) $ \cur -> do
+  link <- cur @@ "href"
+  let name = TL.toStrict $ innerHtml cur
+  pure Tag { .. }
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
 parsePostTime :: MonadError ParseError m => Cursor -> m UTCTime
