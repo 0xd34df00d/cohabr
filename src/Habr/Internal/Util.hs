@@ -2,6 +2,7 @@
 
 module Habr.Internal.Util
 ( readInt
+, reverseLinkParts
 ) where
 
 import qualified Data.Text as T
@@ -16,3 +17,6 @@ readInt text = do
   if T.null rest
     then pure val
     else throwError [ [i|unable to parse `#{text}` as int|] ]
+
+reverseLinkParts :: T.Text -> [T.Text]
+reverseLinkParts = reverse . T.split (== '/')

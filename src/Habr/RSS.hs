@@ -5,7 +5,6 @@ module Habr.RSS
 ) where
 
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import qualified Data.Text as T
 import Data.Maybe
 import Text.Feed.Import
 import Text.Feed.Types
@@ -28,6 +27,6 @@ extractRssChannel RSSChannel { .. } = mapMaybe handleItem rssItems
     handleItem item = do
       guid <- rssItemGuid item
       -- TODO more type safety
-      let (_:postId:_) = reverse $ T.split (== '/') $ rssGuidValue guid
+      let (_:postId:_) = reverseLinkParts $ rssGuidValue guid
       let Right val = readInt postId
       pure val
