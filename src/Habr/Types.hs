@@ -1,9 +1,12 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module Habr.Types where
 
 import qualified Data.Text as T
+import Data.Hashable
 import Data.Time.Clock
+import GHC.Generics
 
 data Votes = Votes
   { pos :: Int
@@ -54,15 +57,15 @@ data PostStats = PostStats
 data Tag = Tag
   { name :: T.Text
   , link :: T.Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Generic, Hashable)
 
-data HubKind = NormalHub | CompanyHub deriving (Eq, Ord, Show)
+data HubKind = NormalHub | CompanyHub deriving (Eq, Ord, Show, Generic, Hashable)
 
 data Hub = Hub
   { hubCode :: T.Text
   , hubName :: T.Text
   , hubKind :: HubKind
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Generic, Hashable)
 
 data Post = Post
   { title :: T.Text
