@@ -5,6 +5,7 @@
 module Habr.Diff where
 
 import qualified Data.HashSet as S
+import qualified Data.Text as T
 import Data.Hashable
 import Data.Maybe
 import Data.Monoid
@@ -31,22 +32,32 @@ data StoredPostInfo = StoredPostInfo
 newtype UpdateField tableRec = UpdateField { getUpdate :: tableRec O -> tableRec O }
   deriving (Semigroup, Monoid) via Endo (tableRec O)
 
+data RawPostVersion = RawPostVersion
+  { rawPVTitle :: T.Text
+  , rawPVText :: T.Text
+  } deriving (Eq, Ord, Show)
+
 data PostUpdateActions = PostUpdateActions
   { postUpdates :: [UpdateField P.Post]
   , hubsDiff :: ListDiff Hub
-  , newPostVersion :: Maybe (PV.PostVersion W)
+  , newPostVersion :: Maybe RawPostVersion
   }
 
 postUpdateActions :: StoredPostInfo -> Post -> PostUpdateActions
 postUpdateActions StoredPostInfo { .. } Post { .. } = PostUpdateActions { .. }
   where
-    PostStats { votes = Votes { .. }, .. } = postStats
     hubsDiff = calcDiff storedPostHubs hubs
+
+    PostStats { votes = Votes { .. }, .. } = postStats
     postUpdates = catMaybes [upScorePlus, upScoreMinus, upOrigViews, upOrigViewsNearly]
     upScorePlus = produceUpdateField @SqlInt4 storedPost P.accScorePlus pos
     upScoreMinus = produceUpdateField @SqlInt4 storedPost P.accScoreMinus neg
     upOrigViews = produceUpdateField @SqlInt4 storedPost P.accOrigViews $ viewsCount views
     upOrigViewsNearly = produceUpdateField @SqlBool storedPost P.accOrigViewsNearly $ not $ isExactCount views
+
+    newPostVersion | Just title == PV.title storedCurrentVersion &&
+                     body == PV.content storedCurrentVersion = Nothing
+                   | otherwise = Just RawPostVersion { rawPVTitle = title, rawPVText = body }
 
 produceUpdateField :: forall ty tableRec a. (Eq a, Default Constant a (Column ty)) =>
                       tableRec H ->
