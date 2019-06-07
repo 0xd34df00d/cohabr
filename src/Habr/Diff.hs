@@ -43,17 +43,18 @@ postUpdateActions StoredPostInfo { .. } Post { .. } = PostUpdateActions { .. }
     PostStats { votes = Votes { .. }, .. } = postStats
     hubsDiff = calcDiff storedPostHubs hubs
     postUpdates = catMaybes [upScorePlus, upScoreMinus, upOrigViews, upOrigViewsNearly]
-    upScorePlus = produceUpdateField @SqlInt4 P.accScorePlus pos
-    upScoreMinus = produceUpdateField @SqlInt4 P.accScoreMinus neg
-    upOrigViews = produceUpdateField @SqlInt4 P.accOrigViews $ viewsCount views
-    upOrigViewsNearly = produceUpdateField @SqlBool P.accOrigViewsNearly $ not $ isExactCount views
+    upScorePlus = produceUpdateField @SqlInt4 storedPost P.accScorePlus pos
+    upScoreMinus = produceUpdateField @SqlInt4 storedPost P.accScoreMinus neg
+    upOrigViews = produceUpdateField @SqlInt4 storedPost P.accOrigViews $ viewsCount views
+    upOrigViewsNearly = produceUpdateField @SqlBool storedPost P.accOrigViewsNearly $ not $ isExactCount views
 
-    produceUpdateField :: forall ty a. (Eq a, Default Constant a (Column ty)) =>
-                          (forall f. Lens' (P.Post f) (TableField f a ty N Req)) ->
-                          a -> Maybe (UpdateField P.Post)
-    produceUpdateField acc parsed | Just val <- storedPost^.acc
-                                  , val == parsed = Nothing
-                                  | otherwise = Just $ UpdateField (& acc .~ toFields (Just parsed))
+produceUpdateField :: forall ty tableRec a. (Eq a, Default Constant a (Column ty)) =>
+                      tableRec H ->
+                      (forall f. Lens' (tableRec f) (TableField f a ty N Req)) ->
+                      a -> Maybe (UpdateField tableRec)
+produceUpdateField stored acc parsed | Just val <- stored^.acc
+                                     , val == parsed = Nothing
+                                     | otherwise = Just $ UpdateField (& acc .~ toFields (Just parsed))
 
 calcDiff :: (Eq a, Hashable a) => [a] -> [a] -> ListDiff a
 calcDiff (S.fromList -> stored) (S.fromList -> parsed) = ListDiff { .. }
