@@ -13,8 +13,8 @@ data Post f = Post
   , published       :: TableField f LocalTime SqlTimestamp  N  Req
   , link            :: TableField f String    SqlText       N  Req
   , linkName        :: TableField f String    SqlText       N  Req
-  , scorePlus       :: TableField f Double    SqlFloat8     N  Req
-  , scoreMinus      :: TableField f Double    SqlFloat8     N  Req
+  , scorePlus       :: TableField f Int       SqlInt4       N  Req
+  , scoreMinus      :: TableField f Int       SqlInt4       N  Req
   , origViews       :: TableField f Int       SqlInt4       N  Req
   , origViewsNearly :: TableField f Bool      SqlBool       N  Req
   , currentVersion  :: TableField f Int       SqlInt4       NN Req
