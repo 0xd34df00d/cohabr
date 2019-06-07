@@ -41,6 +41,7 @@ dependencies:
 - time
 - tuple
 - uniplate
+- unordered-containers
 - xml-conduit
 
 library:
