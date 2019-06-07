@@ -10,7 +10,7 @@ data Post f = Post
   , sourceId        :: TableField f Int       SqlInt4       NN Req
   , sourceSite      :: TableField f String    SqlText       N  Req
   , user            :: TableField f String    SqlText       N  Req
-  , published       :: TableField f LocalTime SqlTimestamp  N  Req
+  , published       :: TableField f LocalTime SqlTimestamp  NN Req
   , link            :: TableField f String    SqlText       N  Req
   , linkName        :: TableField f String    SqlText       N  Req
   , scorePlus       :: TableField f Int       SqlInt4       N  Req
