@@ -1,14 +1,12 @@
-{-# LANGUAGE RecordWildCards, ViewPatterns, DuplicateRecordFields, DerivingVia #-}
-{-# LANGUAGE PolyKinds, FlexibleContexts, DataKinds, RankNTypes #-}
+{-# LANGUAGE RecordWildCards, ViewPatterns, DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-# LANGUAGE AllowAmbiguousTypes, TypeApplications #-}
 
 module Habr.Diff where
 
 import qualified Data.HashSet as S
-import qualified Data.Text as T
 import Data.Hashable
 import Data.Maybe
-import Data.Monoid
 import Data.Profunctor.Product.Default
 import Lens.Micro
 import Opaleye hiding(not)
@@ -16,31 +14,13 @@ import Opaleye.TypeFamilies
 
 import qualified Cohabr.Db.Tables.Post as P
 import qualified Cohabr.Db.Tables.PostVersion as PV
+import Cohabr.Db.Updates
 import Habr.Types
-
-data ListDiff a = ListDiff
-  { added :: [a]
-  , removed :: [a]
-  } deriving (Eq, Ord, Show)
 
 data StoredPostInfo = StoredPostInfo
   { storedPost :: P.Post H
   , storedCurrentVersion :: PV.PostVersion H
   , storedPostHubs :: [Hub]
-  }
-
-newtype UpdateField tableRec = UpdateField { getUpdate :: tableRec O -> tableRec O }
-  deriving (Semigroup, Monoid) via Endo (tableRec O)
-
-data RawPostVersion = RawPostVersion
-  { rawPVTitle :: T.Text
-  , rawPVText :: T.Text
-  } deriving (Eq, Ord, Show)
-
-data PostUpdateActions = PostUpdateActions
-  { postUpdates :: [UpdateField P.Post]
-  , hubsDiff :: ListDiff Hub
-  , newPostVersion :: Maybe RawPostVersion
   }
 
 postUpdateActions :: StoredPostInfo -> Post -> PostUpdateActions
