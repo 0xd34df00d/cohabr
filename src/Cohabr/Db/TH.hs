@@ -5,6 +5,7 @@
 module Cohabr.Db.TH
 ( makeTFAdaptorAndInstance
 , makeTable
+, makeTableLenses
 , D.def
 , module Opaleye
 , module Opaleye.TypeFamilies
@@ -19,6 +20,8 @@ import qualified Data.Profunctor.Product.Default as D
 import Data.Profunctor.Product.Default(Default)
 import Data.Tuple.Select
 import Language.Haskell.TH
+import Lens.Micro
+import Lens.Micro.TH
 import qualified Opaleye.Map as M
 import Opaleye
 import Opaleye.TypeFamilies
@@ -121,3 +124,9 @@ normalizeTableName = addSuffix . replaceUnderscores
     replaceUnderscores ('_' : ch : rest) = toUpper ch : replaceUnderscores rest
     replaceUnderscores (ch : rest) = ch : replaceUnderscores rest
     replaceUnderscores [] = []
+
+makeTableLenses :: Name -> Q [Dec]
+makeTableLenses = makeLensesWith $ lensRules & lensField .~ genName
+  where
+    genName _ _ name | (f : rest) <- nameBase name = [TopName $ mkName $ "acc" <> (toUpper f : rest)]
+                     | otherwise = []

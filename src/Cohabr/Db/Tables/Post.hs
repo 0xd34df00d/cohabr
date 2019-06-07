@@ -22,6 +22,7 @@ data Post f = Post
   }
 
 $(makeTFAdaptorAndInstance "pPost" ''Post)
+$(makeTableLenses ''Post)
 $(makeTable ''Post 'pPost "posts"
     [ "id"
     , "source_id"
