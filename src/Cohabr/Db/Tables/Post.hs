@@ -13,13 +13,9 @@ data Post f = Post
   , published       :: TableField f LocalTime SqlTimestamp  N  Req
   , link            :: TableField f String    SqlText       N  Req
   , linkName        :: TableField f String    SqlText       N  Req
-  , linkType        :: TableField f Int       SqlInt4       N  Req
   , scorePlus       :: TableField f Double    SqlFloat8     N  Req
   , scoreMinus      :: TableField f Double    SqlFloat8     N  Req
-  , views           :: TableField f Int       SqlInt4       N  Req
   , origViews       :: TableField f Int       SqlInt4       N  Req
-  , visible         :: TableField f Bool      SqlBool       N  Req
-  , scanned         :: TableField f Bool      SqlBool       N  Opt
   , origViewsNearly :: TableField f Bool      SqlBool       N  Req
   , currentVersion  :: TableField f Int       SqlInt4       NN Req
   , author          :: TableField f Int       SqlInt4       N  Req
@@ -34,13 +30,9 @@ $(makeTable ''Post 'pPost "posts"
     , "published"
     , "link"
     , "link_name"
-    , "link_type"
     , "score_plus"
     , "score_minus"
-    , "views"
     , "orig_views"
-    , "visible"
-    , "scanned"
     , "orig_views_nearly"
     , "current_version"
     , "author"
