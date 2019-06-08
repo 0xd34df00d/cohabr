@@ -56,6 +56,9 @@ data PostStats = PostStats
   , views :: PostViews
   } deriving (Eq, Ord, Show)
 
+data Flag = RssFeed | Draftbox | News | Recovery | Tutorial | Translation | Sandbox | NormalPost
+  deriving (Eq, Ord, Show, Generic, Hashable)
+
 data Tag = Tag
   { name :: T.Text
   , link :: T.Text
