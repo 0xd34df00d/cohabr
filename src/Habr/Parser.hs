@@ -99,7 +99,7 @@ parsePostStats cur = do
   where parseViews t = PostViews True <$> readInt t <|> PostViews False <$> readApproxInt (T.unpack t)
 
 readApproxInt :: MonadError ParseError m => String -> m Int
-readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read [hs]
+readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read (hs : "00")
                   | otherwise = throwParseError [i|#{str} is not in approximate format|]
 
 parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m [Comment]
