@@ -8,7 +8,6 @@ import Data.Time.LocalTime
 data Post f = Post
   { postId          :: TableField f PKeyId    SqlInt4       NN Opt
   , sourceId        :: TableField f HabrId    SqlInt4       NN Req
-  , sourceSite      :: TableField f String    SqlText       N  Req
   , user            :: TableField f String    SqlText       N  Req
   , published       :: TableField f LocalTime SqlTimestamp  NN Req
   , link            :: TableField f String    SqlText       N  Req
@@ -26,7 +25,6 @@ $(makeTableLenses ''Post)
 $(makeTable ''Post 'pPost "posts"
     [ "id"
     , "source_id"
-    , "source_site"
     , "user"
     , "published"
     , "link"
