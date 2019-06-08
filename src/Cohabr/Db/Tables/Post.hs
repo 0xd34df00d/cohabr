@@ -1,13 +1,14 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses, UndecidableInstances, TypeFamilies #-}
 module Cohabr.Db.Tables.Post where
 import Cohabr.Db.TH
+import Cohabr.Db.HelperTypes
 
 import Data.Time.LocalTime
 
 -- TODO type safety for the sourceId field
 data Post f = Post
-  { postId          :: TableField f Int       SqlInt4       NN Opt
-  , sourceId        :: TableField f Int       SqlInt4       NN Req
+  { postId          :: TableField f PKeyId    SqlInt4       NN Opt
+  , sourceId        :: TableField f HabrId    SqlInt4       NN Req
   , sourceSite      :: TableField f String    SqlText       N  Req
   , user            :: TableField f String    SqlText       N  Req
   , published       :: TableField f LocalTime SqlTimestamp  NN Req
