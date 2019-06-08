@@ -5,7 +5,6 @@ import Cohabr.Db.HelperTypes
 
 import Data.Time.LocalTime
 
--- TODO type safety for the sourceId field
 data Post f = Post
   { postId          :: TableField f PKeyId    SqlInt4       NN Opt
   , sourceId        :: TableField f HabrId    SqlInt4       NN Req
@@ -18,8 +17,8 @@ data Post f = Post
   , scoreMinus      :: TableField f Int       SqlInt4       N  Req
   , origViews       :: TableField f Int       SqlInt4       N  Req
   , origViewsNearly :: TableField f Bool      SqlBool       N  Req
-  , currentVersion  :: TableField f Int       SqlInt4       NN Req
-  , author          :: TableField f Int       SqlInt4       N  Req
+  , currentVersion  :: TableField f PKeyId    SqlInt4       NN Req
+  , author          :: TableField f PKeyId    SqlInt4       N  Req
   }
 
 $(makeTFAdaptorAndInstance "pPost" ''Post)
