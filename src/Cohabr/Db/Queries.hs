@@ -1,5 +1,6 @@
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cohabr.Db.Queries
 ( selectMissingPosts
@@ -14,25 +15,26 @@ import Opaleye.TypeFamilies
 
 import qualified Cohabr.Db.Tables.Post as P
 import qualified Cohabr.Db.Tables.PostVersion as PV
+import Cohabr.Db.HelperTypes
 
-selectKnownPostsQ :: [Int] -> Select (Field SqlInt4)
+selectKnownPostsQ :: [HabrId] -> Select (Field SqlInt4)
 selectKnownPostsQ candidates = proc () -> do
   P.Post { .. } <- selectTable P.postsTable -< ()
-  restrict -< in_ (pgInt4 <$> candidates) postId
+  restrict -< in_ (toFields <$> candidates) postId
   returnA -< postId
 
-selectMissingPosts :: [Int] -> PGS.Connection -> IO [Int]
+selectMissingPosts :: [HabrId] -> PGS.Connection -> IO [HabrId]
 selectMissingPosts candidates conn = (candidates \\) <$> runSelect conn (selectKnownPostsQ candidates)
 
-selectPostWVersionByHabrIdQ :: Int -> Select (P.Post O, PV.PostVersion O)
+selectPostWVersionByHabrIdQ :: HabrId -> Select (P.Post O, PV.PostVersion O)
 selectPostWVersionByHabrIdQ habrId = proc () -> do
   post <- selectTable P.postsTable -< ()
-  restrict -< P.sourceId post .== pgInt4 habrId
+  restrict -< P.sourceId post .== toFields habrId
   postVersion <- selectTable PV.postsVersionsTable -< ()
   restrict -< PV.versionId postVersion .== P.currentVersion post
   returnA -< (post, postVersion)
 
-findPostByHabrId :: Int -> PGS.Connection -> IO (Maybe (P.Post H, PV.PostVersion H))
+findPostByHabrId :: HabrId -> PGS.Connection -> IO (Maybe (P.Post H, PV.PostVersion H))
 findPostByHabrId habrId conn = handleList <$> runSelect conn (selectPostWVersionByHabrIdQ habrId)
   where
     handleList [] = Nothing

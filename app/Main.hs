@@ -12,12 +12,13 @@ import Data.String.Interpolate
 import Data.Time.Clock
 import Network.HTTP.Conduit
 import Opaleye
-import Text.XML.Cursor(fromDocument)
 import Text.HTML.DOM(parseLBS)
+import Text.XML.Cursor(fromDocument)
 import Time.Repeatedly
 import System.IO
 
 import Cohabr.Db.Queries
+import Cohabr.Db.HelperTypes
 import Habr.Parser
 import Habr.RSS
 
@@ -26,28 +27,29 @@ withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
   PGS.close
 
-updatePost :: Int -> IO ()
-updatePost postId = do
+refetchPost :: HabrId -> IO ()
+refetchPost postId = do
   now <- getCurrentTime
-  postPage <- simpleHttp [i|https://habr.com/ru/post/#{postId}/|]
+  postPage <- simpleHttp [i|https://habr.com/ru/post/#{habrId postId}/|]
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
-    Left err -> hPutStr stderr $ unlines err
-    Right (post, comments) -> pure ()
-  pure ()
+    Left errs -> hPutStr stderr $ unlines errs
+    Right (post, comments) -> do
+      maybeOurVersion <- withConnection $ findPostByHabrId postId
+      case maybeOurVersion of
+        Nothing -> putStrLn "new post!"
+        Just (ourPost, ourVersion) -> putStrLn "found post!"
 
 pollRSS :: IO ()
 pollRSS = do
   rss <- simpleHttp "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
   let maybeIds = recentArticles rss
-  print maybeIds
   case maybeIds of
     Nothing -> undefined
     Just ids -> do
-                  (recs :: [Int]) <- withConnection $ selectMissingPosts ids
-                  print recs
-                  pure ()
+      recs <- withConnection $ selectMissingPosts $ HabrId <$> ids
+      mapM_ refetchPost [head recs]
 
 main :: IO ()
 main = do
