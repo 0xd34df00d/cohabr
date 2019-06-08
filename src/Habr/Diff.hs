@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, ViewPatterns, DuplicateRecordFields #-}
+{-# LANGUAGE RecordWildCards, ViewPatterns #-}
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-# LANGUAGE AllowAmbiguousTypes, TypeApplications #-}
 
