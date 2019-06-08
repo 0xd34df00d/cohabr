@@ -20,8 +20,8 @@ import Cohabr.Db.HelperTypes
 selectKnownPostsQ :: [HabrId] -> Select (Field SqlInt4)
 selectKnownPostsQ candidates = proc () -> do
   P.Post { .. } <- selectTable P.postsTable -< ()
-  restrict -< in_ (toFields <$> candidates) postId
-  returnA -< postId
+  restrict -< in_ (toFields <$> candidates) sourceId
+  returnA -< sourceId
 
 selectMissingPosts :: [HabrId] -> PGS.Connection -> IO [HabrId]
 selectMissingPosts candidates conn = (candidates \\) <$> runSelect conn (selectKnownPostsQ candidates)
