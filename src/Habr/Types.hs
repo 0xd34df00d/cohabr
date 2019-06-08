@@ -77,6 +77,7 @@ data Post = Post
   , body :: T.Text
   , hubs :: [Hub]
   , tags :: [Tag]
+  , flags :: [Flag]
   , user :: UserInfo
   , timestamp :: UTCTime
   , postStats :: PostStats

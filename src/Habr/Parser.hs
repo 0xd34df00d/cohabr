@@ -8,6 +8,7 @@ module Habr.Parser
 ) where
 
 import qualified Data.IntMap as IM
+import qualified Data.HashMap.Lazy as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Control.Applicative
@@ -16,6 +17,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Either.Combinators
 import Data.Functor
+import Data.List
 import Data.Maybe
 import Data.String.Interpolate
 import Data.Time.Calendar
@@ -48,6 +50,7 @@ parsePost root = do
   user <- root @> [jq|.post__meta|] >>= parseUser
   timestamp <- parsePostTime root
   postStats <- root @> [jq|.post-stats|] >>= parsePostStats
+  flags <- parseFlags root
   pure Post { .. }
 
 parseHubs :: MonadError ParseError m => Cursor -> m [Hub]
@@ -67,6 +70,19 @@ parseTags root = forM (queryT [jq|.post_tag|] root) $ \cur -> do
   link <- cur @@ "href"
   let name = TL.toStrict $ innerHtml cur
   pure Tag { .. }
+
+parseFlags :: MonadError ParseError m => Cursor -> m [Flag]
+parseFlags root = pure $ nub $ filter (/= NormalPost) $ f <$> queryT [jq|.post__type-label|] root
+  where
+    f cur = HM.lookupDefault NormalPost (innerHtml cur) theMap
+    theMap = HM.fromList [ ("В черновиках", Draftbox)
+                         , ("Перевод", Translation)
+                         , ("Из песочницы", Sandbox)
+                         , ("Tutorial", Tutorial)
+                         , ("Новость", News)
+                         , ("Recovery mode", Recovery)
+                         , ("Из RSS", RssFeed)
+                         ]
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
 parsePostTime :: MonadError ParseError m => Cursor -> m UTCTime
