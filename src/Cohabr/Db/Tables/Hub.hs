@@ -4,7 +4,7 @@ import Cohabr.Db.TH
 
 data Hub f = Hub
   { hubId   :: TableField f String SqlText NN Req
-  , hubName :: TableField f String SqlText N  Req
+  , hubName :: TableField f String SqlText NN Req
   }
 
 $(makeTFAdaptorAndInstance "pHub" ''Hub)
