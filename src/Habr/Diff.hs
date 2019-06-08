@@ -23,8 +23,8 @@ data StoredPostInfo = StoredPostInfo
   , storedPostHubs :: [Hub]
   }
 
-postUpdateActions :: StoredPostInfo -> Post -> PostUpdateActions
-postUpdateActions StoredPostInfo { .. } Post { .. } = PostUpdateActions { .. }
+postUpdateActions :: Int -> StoredPostInfo -> Post -> PostUpdateActions
+postUpdateActions postId StoredPostInfo { .. } Post { .. } = PostUpdateActions { .. }
   where
     hubsDiff = calcDiff storedPostHubs hubs
 

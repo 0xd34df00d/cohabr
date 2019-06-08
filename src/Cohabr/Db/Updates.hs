@@ -25,7 +25,8 @@ data ListDiff a = ListDiff
   } deriving (Eq, Ord, Show)
 
 data PostUpdateActions = PostUpdateActions
-  { postUpdates :: [UpdateField P.Post]
+  { postId :: Int
+  , postUpdates :: [UpdateField P.Post]
   , hubsDiff :: ListDiff Hub
   , newPostVersion :: Maybe RawPostVersion
   }
