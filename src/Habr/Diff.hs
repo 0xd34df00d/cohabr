@@ -14,6 +14,7 @@ import Opaleye.TypeFamilies
 
 import qualified Cohabr.Db.Tables.Post as P
 import qualified Cohabr.Db.Tables.PostVersion as PV
+import Cohabr.Db.HelperTypes
 import Cohabr.Db.Updates
 import Habr.Types
 
@@ -23,7 +24,7 @@ data StoredPostInfo = StoredPostInfo
   , storedPostHubs :: [Hub]
   }
 
-postUpdateActions :: Int -> StoredPostInfo -> Post -> PostUpdateActions
+postUpdateActions :: PKeyId -> StoredPostInfo -> Post -> PostUpdateActions
 postUpdateActions postId StoredPostInfo { .. } Post { .. } = PostUpdateActions { .. }
   where
     hubsDiff = calcDiff storedPostHubs hubs

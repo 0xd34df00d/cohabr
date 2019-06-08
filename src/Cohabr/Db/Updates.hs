@@ -9,6 +9,7 @@ import Opaleye.TypeFamilies
 
 import qualified Cohabr.Db.Tables.Post as P
 import qualified Cohabr.Db.Tables.PostVersion as PV
+import Cohabr.Db.HelperTypes
 import Habr.Types
 
 newtype UpdateField tableRec = UpdateField { getUpdate :: tableRec O -> tableRec O }
@@ -25,7 +26,7 @@ data ListDiff a = ListDiff
   } deriving (Eq, Ord, Show)
 
 data PostUpdateActions = PostUpdateActions
-  { postId :: Int
+  { postId :: PKeyId
   , postUpdates :: [UpdateField P.Post]
   , hubsDiff :: ListDiff Hub
   , newPostVersion :: Maybe RawPostVersion
