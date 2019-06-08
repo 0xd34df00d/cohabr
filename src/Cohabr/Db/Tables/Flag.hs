@@ -2,10 +2,12 @@
 module Cohabr.Db.Tables.Flag where
 import Cohabr.Db.TH
 
+import qualified Data.Text as T
+
 data Flag f = Flag
-  { flagId  :: TableField f String SqlText NN Req
-  , text    :: TableField f String SqlText N  Req
-  , tooltip :: TableField f String SqlText N  Req
+  { flagId  :: TableField f T.Text SqlText NN Req
+  , text    :: TableField f T.Text SqlText N  Req
+  , tooltip :: TableField f T.Text SqlText N  Req
   }
 
 $(makeTFAdaptorAndInstance "pFlag" ''Flag)
