@@ -72,12 +72,18 @@ data Hub = Hub
   , hubKind :: HubKind
   } deriving (Eq, Ord, Show, Generic, Hashable)
 
+data Link = Link
+  { linkUrl :: T.Text
+  , linkName :: T.Text
+  } deriving (Eq, Ord, Show)
+
 data Post = Post
   { title :: T.Text
   , body :: T.Text
   , hubs :: [Hub]
   , tags :: [Tag]
   , flags :: [Flag]
+  , link :: Maybe Link
   , user :: UserInfo
   , timestamp :: UTCTime
   , postStats :: PostStats

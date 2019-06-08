@@ -51,6 +51,7 @@ parsePost root = do
   timestamp <- parsePostTime root
   postStats <- root @> [jq|.post-stats|] >>= parsePostStats
   flags <- parseFlags root
+  link <- parseLink root
   pure Post { .. }
 
 parseHubs :: MonadError ParseError m => Cursor -> m [Hub]
@@ -83,6 +84,18 @@ parseFlags root = pure $ nub $ filter (/= NormalPost) $ f <$> queryT [jq|.post__
                          , ("Recovery mode", Recovery)
                          , ("Из RSS", RssFeed)
                          ]
+
+parseLink :: MonadError ParseError m => Cursor -> m (Maybe Link)
+parseLink root = case runExcept $ root @> [jq|a.post__translatation-link|] of
+  Left _ -> pure Nothing
+  Right aElem -> do
+    linkUrl <- aElem @@ "href"
+    let linkText = TL.toStrict $ innerHtml aElem
+    linkName <- if textPrefix `T.isPrefixOf` linkText
+                   then pure $ T.drop (T.length textPrefix) linkText
+                   else throwParseError [i|Unexpected link text: `#{linkText}`|]
+    pure $ Just Link { .. }
+  where textPrefix = "Автор оригинала: "
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
 parsePostTime :: MonadError ParseError m => Cursor -> m UTCTime
