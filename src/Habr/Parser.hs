@@ -43,8 +43,8 @@ throwParseError = throwError . pure
 
 parsePost :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Post
 parsePost root = do
-  title <- root @>. [jq|span.post__title-text|]
-  body <- root @>. [jq|div.post__text|]
+  title <- T.strip <$> root @>. [jq|span.post__title-text|]
+  body <- T.strip <$> root @>. [jq|div.post__text|]
   hubs <- parseHubs root
   tags <- parseTags root
   user <- root @> [jq|.post__meta|] >>= parseUser
