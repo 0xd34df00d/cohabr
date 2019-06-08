@@ -30,7 +30,7 @@ withConnection = bracket
 refetchPost :: HabrId -> IO ()
 refetchPost postId = do
   now <- getCurrentTime
-  postPage <- simpleHttp [i|https://habr.com/ru/post/#{habrId postId}/|]
+  postPage <- simpleHttp [i|https://habr.com/ru/post/#{getHabrId postId}/|]
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
