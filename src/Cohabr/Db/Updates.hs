@@ -9,6 +9,7 @@ module Cohabr.Db.Updates
 
 , PostUpdateActions(..)
 , updatePost
+, insertPost
 ) where
 
 import qualified Data.Text as T
@@ -18,7 +19,7 @@ import Data.List
 import Data.Maybe
 import Data.Monoid
 import GHC.Stack
-import Opaleye
+import Opaleye hiding(not)
 import Opaleye.TypeFamilies
 
 import qualified Cohabr.Db.Tables.Hub as H
@@ -51,6 +52,58 @@ data PostUpdateActions = PostUpdateActions
 expectSingleResult :: (HasCallStack, Monad m) => [a] -> m a
 expectSingleResult [e] = pure e
 expectSingleResult _ = error $ "Expected single ID at:\n" <> prettyCallStack callStack
+
+insertPost :: PGS.Connection -> HabrId -> Post -> IO ()
+insertPost conn habrId post@Post { .. } = PGS.withTransaction conn $ do
+  versionId <- expectSingleResult =<< runInsert_ conn Insert
+    { iTable = PV.postsVersionsTable
+    , iRows = [makePostVersionRecord post]
+    , iReturning = rReturning PV.versionId
+    , iOnConflict = Nothing
+    }
+
+  postId :: PKeyId <- expectSingleResult =<< runInsert_ conn Insert
+    { iTable = P.postsTable
+    , iRows = [makePostRecord habrId versionId post]
+    , iReturning = rReturning P.postId
+    , iOnConflict = Nothing
+    }
+
+  upCount <- runUpdate_ conn Update
+    { uTable = PV.postsVersionsTable
+    , uUpdateWith = updateEasy $ \pv -> pv { PV.postId = toFields postId }
+    , uWhere = \pv -> PV.versionId pv .== toFields versionId
+    , uReturning = rCount
+    }
+
+  guard $ upCount == 1
+
+makePostVersionRecord :: Post -> PV.PostVersion W
+makePostVersionRecord Post { .. } = PV.PostVersion
+  { PV.versionId = Nothing
+  , PV.postId = 0
+  , PV.added = Nothing
+  , PV.title = toFields $ Just title
+  , PV.content = toFields body
+  }
+
+makePostRecord :: HabrId -> PKeyId -> Post -> P.Post W
+makePostRecord habrId versionId Post { .. } = P.Post
+  { P.postId = Nothing
+  , P.sourceId = toFields habrId
+  , P.user = toFields $ Just $ username user
+  , P.published = toFields timestamp
+  , P.link = toFields $ linkUrl <$> link
+  , P.linkName = toFields $ linkName <$> link
+  , P.scorePlus = toFields $ Just pos
+  , P.scoreMinus = toFields $ Just neg
+  , P.origViews = toFields $ Just $ viewsCount views
+  , P.origViewsNearly = toFields $ Just $ not $ isExactCount views
+  , P.currentVersion = toFields versionId
+  , P.author = toFields (Nothing :: Maybe Int)
+  }
+  where
+    PostStats { votes = Votes { .. }, .. } = postStats
 
 updatePost :: PGS.Connection -> PostUpdateActions -> IO ()
 updatePost conn PostUpdateActions { .. } = do
