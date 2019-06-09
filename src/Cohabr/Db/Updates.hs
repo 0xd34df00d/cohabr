@@ -122,7 +122,7 @@ updateVersionHubs postVersionId ListDiff { .. } = do
     add hubs = runInsert $ BPG.insert (cPostsHubs cohabrDb) query conflictIgnore
       where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
 
-insertPost :: Connection -> HabrId -> HT.Post -> IO ()
+insertPost :: Connection -> HabrId -> HT.Post -> IO PKeyId
 insertPost conn habrId post@HT.Post { .. } = PGS.withTransaction conn $ runBeamPostgres conn $ do
   versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
                   insertExpressions $ pure $ makePostVersionRecord post
@@ -133,6 +133,7 @@ insertPost conn habrId post@HT.Post { .. } = PGS.withTransaction conn $ runBeamP
               (\pv -> pvPostId pv <-. val_ postId)
               (\pv -> pvId pv ==. val_ versionId)
   unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+  pure postId
 
 makePostVersionRecord :: HT.Post -> forall s. PostVersionT (QExpr Postgres s)
 makePostVersionRecord HT.Post { .. } = PostVersion
