@@ -48,25 +48,26 @@ data PostUpdateActions = PostUpdateActions
   }
 
 updatePost :: PGS.Connection -> PostUpdateActions -> IO ()
-updatePost conn PostUpdateActions { .. } = PGS.withTransaction conn $ do
-  maybeNewVersionId <- updatePostVersion conn postId newPostVersion
+updatePost conn PostUpdateActions { .. } = do
   ensureHubsExisting conn $ added hubsDiff
+  PGS.withTransaction conn $ do
+    maybeNewVersionId <- updatePostVersion conn postId newPostVersion
 
-  let additionalUpdates = [
-          (\verId -> UpdateField $ \p -> p { P.currentVersion = toFields verId }) <$> maybeNewVersionId
-        ]
+    let additionalUpdates = [
+            (\verId -> UpdateField $ \p -> p { P.currentVersion = toFields verId }) <$> maybeNewVersionId
+          ]
 
-  let postUpdates' = catMaybes additionalUpdates <> postUpdates
+    let postUpdates' = catMaybes additionalUpdates <> postUpdates
 
-  currentVersionList <- runUpdate_ conn Update
-    { uTable = P.postsTable
-    , uUpdateWith = updateEasy $ getUpdate $ mconcat postUpdates'
-    , uWhere = \post -> P.postId post .== toFields postId
-    , uReturning = rReturning P.currentVersion
-    }
-  case currentVersionList of
-    [currentVersion] -> updateVersionHubs conn currentVersion hubsDiff
-    _ -> error "Expected a single row to be affected"         -- TODO error handling
+    currentVersionList <- runUpdate_ conn Update
+      { uTable = P.postsTable
+      , uUpdateWith = updateEasy $ getUpdate $ mconcat postUpdates'
+      , uWhere = \post -> P.postId post .== toFields postId
+      , uReturning = rReturning P.currentVersion
+      }
+    case currentVersionList of
+      [currentVersion] -> updateVersionHubs conn currentVersion hubsDiff
+      _ -> error "Expected a single row to be affected"         -- TODO error handling
 
 updatePostVersion :: PGS.Connection -> PKeyId -> Maybe RawPostVersion -> IO (Maybe Int)
 updatePostVersion _ _ Nothing = pure Nothing
