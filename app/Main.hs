@@ -9,7 +9,7 @@ import Control.Exception
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.String.Interpolate
-import Data.Time.Clock
+import Data.Time.LocalTime
 import Network.HTTP.Conduit
 import Opaleye
 import Text.HTML.DOM(parseLBS)
@@ -29,7 +29,7 @@ withConnection = bracket
 
 refetchPost :: HabrId -> IO ()
 refetchPost postId = do
-  now <- getCurrentTime
+  now <- zonedTimeToLocalTime <$> getZonedTime
   postPage <- simpleHttp [i|https://habr.com/ru/post/#{getHabrId postId}/|]
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }

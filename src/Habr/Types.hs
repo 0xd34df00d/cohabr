@@ -5,7 +5,7 @@ module Habr.Types where
 
 import qualified Data.Text as T
 import Data.Hashable
-import Data.Time.Clock
+import Data.Time.LocalTime
 import GHC.Generics
 
 data Votes = Votes
@@ -29,7 +29,7 @@ data CommentContents
     { user :: UserInfo
     , votes :: Votes
     , commentText :: T.Text
-    , timestamp :: UTCTime
+    , timestamp :: LocalTime
     }
   deriving (Eq, Ord, Show)
 
@@ -85,6 +85,6 @@ data Post = Post
   , flags :: [Flag]
   , link :: Maybe Link
   , user :: UserInfo
-  , timestamp :: UTCTime
+  , timestamp :: LocalTime
   , postStats :: PostStats
   } deriving (Eq, Ord, Show)

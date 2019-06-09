@@ -22,6 +22,7 @@ import Data.Maybe
 import Data.String.Interpolate
 import Data.Time.Calendar
 import Data.Time.Clock
+import Data.Time.LocalTime
 import Data.Time.Format(defaultTimeLocale, months, parseTimeM, iso8601DateFormat)
 import Text.XML
 import Text.XML.Cursor
@@ -33,7 +34,7 @@ import Habr.Types
 import Habr.Internal.Util
 
 newtype ParseContext = ParseContext
-  { currentTime :: UTCTime
+  { currentTime :: LocalTime
   } deriving (Eq, Ord, Show)
 
 type ParseError = [String]
@@ -98,7 +99,7 @@ parseLink root = case runExcept $ root @> [jq|a.post__translatation-link|] of
   where textPrefix = "Автор оригинала: "
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
-parsePostTime :: MonadError ParseError m => Cursor -> m UTCTime
+parsePostTime :: MonadError ParseError m => Cursor -> m LocalTime
 parsePostTime root = do
   timeText <- root @> [jq|.post__time|] @@^ "data-time_published"
   parseTimeM False defaultTimeLocale (iso8601DateFormat $ Just "%H:%MZ") $ T.unpack timeText
@@ -180,7 +181,7 @@ parseVotes cur = do
   neg <- readInt $ T.tail negStr
   pure Votes { .. }
 
-parseCommentTimestamp :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m UTCTime
+parseCommentTimestamp :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m LocalTime
 parseCommentTimestamp cur = do
   text <- cur @>. [jq| time |]
   parse $ T.unpack <$> T.words text
@@ -191,12 +192,12 @@ parseCommentTimestamp cur = do
                    "сегодня" -> pure 0
                    "вчера"   -> pure $ negate 1
                    _         -> throwParseError [i|unknown date marker `#{marker}`|]
-      curDay <- reader $ utctDay . currentTime
-      pure UTCTime { utctDay = addDays diff curDay, utctDayTime = time }
+      curDay <- reader $ localDay . currentTime
+      pure LocalTime { localDay = addDays diff curDay, localTimeOfDay = time }
     parse ws = parseTimeM False locale "%e %B %Y в %H:%M" $ unwords ws
 
     -- TODO use DiffTime parsing instance when time-1.9 is available in LTS
-    parseTime [h1, h2, ':', m1, m2] = pure $ secondsToDiffTime $ read [h1, h2] * 60 + read [m1, m2]
+    parseTime [h1, h2, ':', m1, m2] = pure $ timeToTimeOfDay $ secondsToDiffTime $ read [h1, h2] * 60 + read [m1, m2]
     parseTime str = throwParseError [i|unable to parse time string `#{str}`|]
 
     locale = defaultTimeLocale
