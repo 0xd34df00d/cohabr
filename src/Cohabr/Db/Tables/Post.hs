@@ -3,15 +3,16 @@ module Cohabr.Db.Tables.Post where
 import Cohabr.Db.TH
 import Cohabr.Db.HelperTypes
 
+import qualified Data.Text as T
 import Data.Time.LocalTime
 
 data Post f = Post
   { postId          :: TableField f PKeyId    SqlInt4       NN Opt
   , sourceId        :: TableField f HabrId    SqlInt4       NN Req
-  , user            :: TableField f String    SqlText       N  Req
+  , user            :: TableField f T.Text    SqlText       N  Req
   , published       :: TableField f LocalTime SqlTimestamp  NN Req
-  , link            :: TableField f String    SqlText       N  Req
-  , linkName        :: TableField f String    SqlText       N  Req
+  , link            :: TableField f T.Text    SqlText       N  Req
+  , linkName        :: TableField f T.Text    SqlText       N  Req
   , scorePlus       :: TableField f Int       SqlInt4       N  Req
   , scoreMinus      :: TableField f Int       SqlInt4       N  Req
   , origViews       :: TableField f Int       SqlInt4       N  Req
