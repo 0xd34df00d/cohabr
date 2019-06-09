@@ -1,15 +1,18 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving, FlexibleInstances, MultiParamTypeClasses, FlexibleContexts, UndecidableInstances #-}
 
 module Cohabr.Db.HelperTypes where
 
-import Data.Profunctor.Product.Default
-import Opaleye
+import Database.Beam
+import Database.Beam.Backend.SQL
 
-newtype HabrId = HabrId { getHabrId :: Int } deriving (Eq, Ord, Show, QueryRunnerColumnDefault PGInt4)
-newtype PKeyId = PKeyId { getPKeyId :: Int } deriving (Eq, Ord, Show, QueryRunnerColumnDefault PGInt4)
+newtype PKeyId = PKeyId { getPKeyId :: Int } deriving (Eq, Show, Num)
+newtype HabrId = HabrId { getHabrId :: Int } deriving (Eq, Show, Num)
 
-instance Default Constant Int (Column col) => Default Constant HabrId (Column col) where
-  def = Constant $ constantExplicit def . getHabrId
+deriving instance HasSqlValueSyntax sy Int => HasSqlValueSyntax sy PKeyId
+deriving instance HasSqlValueSyntax sy Int => HasSqlValueSyntax sy HabrId
 
-instance Default Constant Int (Column col) => Default Constant PKeyId (Column col) where
-  def = Constant $ constantExplicit def . getPKeyId
+deriving instance (BeamSqlBackend be, FromBackendRow be Int) => FromBackendRow be PKeyId
+deriving instance (BeamSqlBackend be, FromBackendRow be Int) => FromBackendRow be HabrId
+
+deriving instance (BeamSqlBackend be, HasSqlEqualityCheck be Int) => HasSqlEqualityCheck be PKeyId
+deriving instance (BeamSqlBackend be, HasSqlEqualityCheck be Int) => HasSqlEqualityCheck be HabrId

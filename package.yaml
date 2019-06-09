@@ -21,6 +21,8 @@ description:         Please see the README on GitHub at <https://github.com/0xd3
 
 dependencies:
 - base >= 4.7 && < 5
+- beam-core
+- beam-postgres
 - bytestring
 - containers
 - dom-selector
@@ -32,11 +34,7 @@ dependencies:
 - microlens
 - microlens-th
 - mtl
-- opaleye
 - postgresql-simple
-- product-profunctors
-- profunctors
-- template-haskell
 - text
 - time
 - tuple

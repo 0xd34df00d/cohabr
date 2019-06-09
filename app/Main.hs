@@ -10,8 +10,8 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Data.String.Interpolate
 import Data.Time.LocalTime
+import Database.Beam
 import Network.HTTP.Conduit
-import Opaleye
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument)
 import Time.Repeatedly

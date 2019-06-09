@@ -1,36 +1,39 @@
-{-# LANGUAGE RecordWildCards, LambdaCase, OverloadedStrings #-}
-{-# LANGUAGE PolyKinds, DataKinds, FlexibleContexts #-}
-{-# LANGUAGE DerivingVia, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RankNTypes, FlexibleContexts, GADTs #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cohabr.Db.Updates
-( UpdateField(..)
+{-( UpdateField(..)
 , RawPostVersion(..)
 , ListDiff(..)
 
 , PostUpdateActions(..)
 , updatePost
 , insertPost
-) where
+)-} where
 
 import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Monad
-import Data.List
 import Data.Maybe
-import Data.Monoid
+import Database.Beam hiding(timestamp)
+import Database.Beam.Backend.SQL
+import Database.Beam.Backend.SQL.BeamExtensions
+import Database.Beam.Postgres
+import Database.Beam.Postgres.Full hiding(insert)
+import Database.Beam.Postgres.Syntax
+import qualified Database.Beam.Postgres.Full as BPG
 import GHC.Stack
-import Opaleye hiding(not)
-import Opaleye.TypeFamilies
 
-import qualified Cohabr.Db.Tables.Hub as H
-import qualified Cohabr.Db.Tables.Post as P
-import qualified Cohabr.Db.Tables.PostHub as PH
-import qualified Cohabr.Db.Tables.PostVersion as PV
+import Cohabr.Db
 import Cohabr.Db.HelperTypes
-import Habr.Types
+import qualified Habr.Types as HT
 
-newtype UpdateField tableRec = UpdateField { getUpdate :: tableRec O -> tableRec O }
-  deriving (Semigroup, Monoid) via Endo (tableRec O)
+data UpdateField table where
+  UpdateField :: HasSqlValueSyntax PgValueSyntax a =>
+      { accessor :: forall f. table f -> Columnar f a
+      , newVal :: a
+      } -> UpdateField table
 
 data RawPostVersion = RawPostVersion
   { rawPVTitle :: T.Text
@@ -44,137 +47,130 @@ data ListDiff a = ListDiff
 
 data PostUpdateActions = PostUpdateActions
   { postId :: PKeyId
-  , postUpdates :: [UpdateField P.Post]
-  , hubsDiff :: ListDiff Hub
+  , postUpdates :: [UpdateField PostT]
+  , hubsDiff :: ListDiff HT.Hub
   , newPostVersion :: Maybe RawPostVersion
   }
 
 expectSingleResult :: (HasCallStack, Monad m) => [a] -> m a
 expectSingleResult [e] = pure e
-expectSingleResult _ = error $ "Expected single ID at:\n" <> prettyCallStack callStack
+expectSingleResult _ = error $ "Expected single ID at:\n" <> prettyCallStack callStack -- TODO error handling
 
-insertPost :: PGS.Connection -> HabrId -> Post -> IO ()
-insertPost conn habrId post@Post { .. } = PGS.withTransaction conn $ do
-  versionId <- expectSingleResult =<< runInsert_ conn Insert
-    { iTable = PV.postsVersionsTable
-    , iRows = [makePostVersionRecord post]
-    , iReturning = rReturning PV.versionId
-    , iOnConflict = Nothing
-    }
+runInsertReturningOne :: (HasCallStack,
+                          MonadBeamInsertReturning be m,
+                          Beamable table,
+                          Projectible be (table (QExpr be ())),
+                          FromBackendRow be (table Identity))
+                      => SqlInsert be table -> m (table Identity)
+runInsertReturningOne f = runInsertReturningList f >>= expectSingleResult
 
-  postId :: PKeyId <- expectSingleResult =<< runInsert_ conn Insert
-    { iTable = P.postsTable
-    , iRows = [makePostRecord habrId versionId post]
-    , iReturning = rReturning P.postId
-    , iOnConflict = Nothing
-    }
+runUpdateReturningOne :: (HasCallStack,
+                          MonadBeamUpdateReturning be m,
+                          Beamable table,
+                          Projectible be (table (QExpr be ())),
+                          FromBackendRow be (table Identity))
+                      => SqlUpdate be table -> m (table Identity)
+runUpdateReturningOne f = runUpdateReturningList f >>= expectSingleResult
 
-  upCount <- runUpdate_ conn Update
-    { uTable = PV.postsVersionsTable
-    , uUpdateWith = updateEasy $ \pv -> pv { PV.postId = toFields postId }
-    , uWhere = \pv -> PV.versionId pv .== toFields versionId
-    , uReturning = rCount
-    }
-
-  guard $ upCount == 1
-
-makePostVersionRecord :: Post -> PV.PostVersion W
-makePostVersionRecord Post { .. } = PV.PostVersion
-  { PV.versionId = Nothing
-  , PV.postId = 0
-  , PV.added = Nothing
-  , PV.title = toFields $ Just title
-  , PV.content = toFields body
-  }
-
-makePostRecord :: HabrId -> PKeyId -> Post -> P.Post W
-makePostRecord habrId versionId Post { .. } = P.Post
-  { P.postId = Nothing
-  , P.sourceId = toFields habrId
-  , P.user = toFields $ Just $ username user
-  , P.published = toFields timestamp
-  , P.link = toFields $ linkUrl <$> link
-  , P.linkName = toFields $ linkName <$> link
-  , P.scorePlus = toFields $ Just pos
-  , P.scoreMinus = toFields $ Just neg
-  , P.origViews = toFields $ Just $ viewsCount views
-  , P.origViewsNearly = toFields $ Just $ not $ isExactCount views
-  , P.currentVersion = toFields versionId
-  , P.author = toFields (Nothing :: Maybe Int)
-  }
-  where
-    PostStats { votes = Votes { .. }, .. } = postStats
-
-updatePost :: PGS.Connection -> PostUpdateActions -> IO ()
+updatePost :: Connection -> PostUpdateActions -> IO ()
 updatePost conn PostUpdateActions { .. } = do
   ensureHubsExisting conn $ added hubsDiff
-  PGS.withTransaction conn $ do
-    maybeNewVersionId <- updatePostVersion conn postId newPostVersion
 
-    let additionalUpdates = [
-            (\verId -> UpdateField $ \p -> p { P.currentVersion = toFields verId }) <$> maybeNewVersionId
+  PGS.withTransaction conn $ runBeamPostgres conn $ do
+    maybeNewVersionId <- updatePostVersion postId newPostVersion
+    let postUpdates' = postUpdates <> catMaybes [
+            (\verId -> UpdateField { accessor = pCurrentVersion, newVal = verId }) <$> maybeNewVersionId
           ]
+    currentRow <- runUpdateReturningOne $ update
+                    (cPosts cohabrDb)
+                    (toUpdaterConcat postUpdates')
+                    (\post -> pId post ==. val_ postId)
+    updateVersionHubs (pCurrentVersion currentRow) hubsDiff
 
-    let postUpdates' = catMaybes additionalUpdates <> postUpdates
+toUpdater :: Beamable table => UpdateField table -> (forall s. table (QField s) -> QAssignment Postgres s)
+toUpdater UpdateField { .. } = \table -> accessor table <-. val_ newVal
 
-    currentVersion <- expectSingleResult =<< runUpdate_ conn Update
-      { uTable = P.postsTable
-      , uUpdateWith = updateEasy $ getUpdate $ mconcat postUpdates'
-      , uWhere = \post -> P.postId post .== toFields postId
-      , uReturning = rReturning P.currentVersion
+toUpdaterConcat :: Beamable table => [UpdateField table] -> (forall s. table (QField s) -> QAssignment Postgres s)
+toUpdaterConcat = foldMap toUpdater
+
+updatePostVersion :: MonadBeamInsertReturning Postgres m => PKeyId -> Maybe RawPostVersion -> m (Maybe PKeyId)
+updatePostVersion _ Nothing = pure Nothing
+updatePostVersion postId (Just RawPostVersion { .. }) =
+  fmap (Just . pvId) $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $ insertExpressions $ pure
+    PostVersion
+      { pvId = default_
+      , pvPostId = val_ postId
+      , pvAdded = default_
+      , pvTitle = val_ $ Just rawPVTitle
+      , pvContent = val_ rawPVText
       }
 
-    updateVersionHubs conn currentVersion hubsDiff
-
-updatePostVersion :: PGS.Connection -> PKeyId -> Maybe RawPostVersion -> IO (Maybe Int)
-updatePostVersion _ _ Nothing = pure Nothing
-updatePostVersion conn postId (Just RawPostVersion { .. }) = runInsert_ conn Insert
-    { iTable = PV.postsVersionsTable
-    , iRows = pure PV.PostVersion
-      { versionId = Nothing
-      , postId = toFields postId
-      , added = Nothing
-      , title = toFields $ Just rawPVTitle
-      , content = toFields rawPVText
-      }
-    , iReturning = rReturning PV.versionId
-    , iOnConflict = Nothing
-    }
-    >>= fmap Just . expectSingleResult
-
-updateVersionHubs :: PGS.Connection -> PKeyId -> ListDiff Hub -> IO ()
-updateVersionHubs conn postVersionId ListDiff { .. } = do
+updateVersionHubs :: MonadBeam Postgres m => PKeyId -> ListDiff HT.Hub -> m ()
+updateVersionHubs postVersionId ListDiff { .. } = do
   remCnt <- remove removed
-  addCnt <- add added
-  guard $ remCnt == genericLength removed && addCnt == genericLength added    -- TODO error handling
+  add added
+  unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
   where
     remove [] = pure 0
-    remove hubs = runDelete_ conn Delete
-      { dTable = PH.postsHubsTable
-      , dWhere = \PH.PostHub { .. } -> postVersion .== toFields postVersionId
-                                   .&& in_ (toFields . makeHubId <$> hubs) hub
-      , dReturning = rCount
-      }
+    remove hubs = expectSingleResult =<< runPgDeleteReturningList
+                    (deleteReturning
+                      (cPostsHubs cohabrDb)
+                      (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
+                      (const countAll_))
 
-    add [] = pure 0
-    add hubs = runInsert_ conn Insert
-      { iTable = PH.postsHubsTable
-      , iRows = mkPostHub <$> hubs
-      , iReturning = rCount
-      , iOnConflict = Nothing
-      }
-    mkPostHub h = PH.PostHub { postVersion = toFields postVersionId, hub = toFields $ makeHubId h }
+    add [] = pure ()
+    add hubs = runInsert $ BPG.insert (cPostsHubs cohabrDb) query conflictIgnore
+      where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
 
-ensureHubsExisting :: PGS.Connection -> [Hub] -> IO ()
-ensureHubsExisting conn hubs = void $ runInsert_ conn Insert
-  { iTable = H.hubsTable
-  , iRows = (\h -> H.Hub { hubId = toFields $ makeHubId h, hubName = toFields $ hubName h }) <$> hubs
-  , iReturning = rCount
-  , iOnConflict = Just DoNothing
+insertPost :: Connection -> HabrId -> HT.Post -> IO ()
+insertPost conn habrId post@HT.Post { .. } = PGS.withTransaction conn $ runBeamPostgres conn $ do
+  versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
+                  insertExpressions $ pure $ makePostVersionRecord post
+  postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
+                  insertExpressions $ pure $ makePostRecord habrId versionId post
+  updates <- runUpdateReturningList $ update
+              (cPostsVersions cohabrDb)
+              (\pv -> pvPostId pv <-. val_ postId)
+              (\pv -> pvId pv ==. val_ versionId)
+  unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+
+makePostVersionRecord :: HT.Post -> forall s. PostVersionT (QExpr Postgres s)
+makePostVersionRecord HT.Post { .. } = PostVersion
+  { pvId = default_
+  , pvPostId = val_ 0
+  , pvAdded = default_
+  , pvTitle = val_ $ Just title
+  , pvContent = val_ body
   }
 
-makeHubId :: Hub -> T.Text
-makeHubId Hub { .. } = prefix hubKind <> hubCode
+makePostRecord :: HabrId -> PKeyId -> HT.Post -> forall s. PostT (QExpr Postgres s)
+makePostRecord habrId versionId HT.Post { .. } = Post
+  { pId = default_
+  , pSourceId = val_ habrId
+  , pUser = val_ $ Just $ HT.username user
+  , pPublished = val_ $ timestamp
+  , pLink = val_ $ HT.linkUrl <$> link
+  , pLinkName = val_ $ HT.linkName <$> link
+  , pScorePlus = val_ $ Just pos
+  , pScoreMinus = val_ $ Just neg
+  , pOrigViews = val_ $ Just $ HT.viewsCount views
+  , pOrigViewsNearly = val_ $ Just $ not $ HT.isExactCount views
+  , pCurrentVersion = val_ versionId
+  , pAuthor = val_ Nothing
+  }
   where
-    prefix NormalHub = mempty
-    prefix CompanyHub = "company-"
+    HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
+
+ensureHubsExisting :: Connection -> [HT.Hub] -> IO ()
+ensureHubsExisting conn hubs = runBeamPostgres conn $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
+  where
+    query = insertValues $ (\h -> Hub { hId = makeHubId h, hName = HT.hubName h }) <$> hubs
+
+makeHubId :: HT.Hub -> T.Text
+makeHubId HT.Hub { .. } = prefix hubKind <> hubCode
+  where
+    prefix HT.NormalHub = mempty
+    prefix HT.CompanyHub = "company-"
+
+conflictIgnore :: Beamable tbl => PgInsertOnConflict tbl
+conflictIgnore = onConflict anyConflict onConflictDoNothing
