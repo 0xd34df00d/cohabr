@@ -95,6 +95,28 @@ instance Table PostFlagT where
   primaryKey PostFlag { .. } = PostFlagId pfPost pfFlag
 
 
+data CommentT f = Comment
+  { cId         :: Columnar f PKeyId
+  , cSourceId   :: Columnar f HabrId
+  , cParent     :: Columnar f HabrId
+  , cPostId     :: Columnar f PKeyId
+  , cUser       :: Columnar f String
+  , cDate       :: Columnar f LocalTime
+  , cText       :: Columnar f Text
+  , cChanged    :: Columnar f Bool
+  , cScorePlus  :: Columnar f Double
+  , cScoreMinus :: Columnar f Double
+  , cDeleted    :: Columnar f Bool
+  , cAuthor     :: Columnar f PKeyId
+  } deriving (Generic, Beamable)
+
+type Comment = CommentT Identity
+
+instance Table CommentT where
+  data PrimaryKey CommentT f = CommentId (Columnar f PKeyId) deriving (Generic, Beamable)
+  primaryKey = CommentId . cId
+
+
 data CohabrDb f = CohabrDb
   { cPosts          :: f (TableEntity PostT)
   , cPostsVersions  :: f (TableEntity PostVersionT)
@@ -102,6 +124,7 @@ data CohabrDb f = CohabrDb
   , cPostsHubs      :: f (TableEntity PostHubT)
   , cFlags          :: f (TableEntity FlagT)
   , cPostsFlags     :: f (TableEntity PostFlagT)
+  , cComments       :: f (TableEntity CommentT)
   } deriving (Generic, Database be)
 
 cohabrDb :: DatabaseSettings be CohabrDb
