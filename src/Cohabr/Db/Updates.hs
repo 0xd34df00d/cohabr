@@ -17,6 +17,7 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Monoid
+import GHC.Stack
 import Opaleye
 import Opaleye.TypeFamilies
 
@@ -47,6 +48,10 @@ data PostUpdateActions = PostUpdateActions
   , newPostVersion :: Maybe RawPostVersion
   }
 
+expectSingleResult :: (HasCallStack, Monad m) => [a] -> m a
+expectSingleResult [e] = pure e
+expectSingleResult _ = error $ "Expected single ID at:\n" <> prettyCallStack callStack
+
 updatePost :: PGS.Connection -> PostUpdateActions -> IO ()
 updatePost conn PostUpdateActions { .. } = do
   ensureHubsExisting conn $ added hubsDiff
@@ -59,15 +64,14 @@ updatePost conn PostUpdateActions { .. } = do
 
     let postUpdates' = catMaybes additionalUpdates <> postUpdates
 
-    currentVersionList <- runUpdate_ conn Update
+    currentVersion <- expectSingleResult =<< runUpdate_ conn Update
       { uTable = P.postsTable
       , uUpdateWith = updateEasy $ getUpdate $ mconcat postUpdates'
       , uWhere = \post -> P.postId post .== toFields postId
       , uReturning = rReturning P.currentVersion
       }
-    case currentVersionList of
-      [currentVersion] -> updateVersionHubs conn currentVersion hubsDiff
-      _ -> error "Expected a single row to be affected"         -- TODO error handling
+
+    updateVersionHubs conn currentVersion hubsDiff
 
 updatePostVersion :: PGS.Connection -> PKeyId -> Maybe RawPostVersion -> IO (Maybe Int)
 updatePostVersion _ _ Nothing = pure Nothing
@@ -83,8 +87,7 @@ updatePostVersion conn postId (Just RawPostVersion { .. }) = runInsert_ conn Ins
     , iReturning = rReturning PV.versionId
     , iOnConflict = Nothing
     }
-  >>= \case [newVersionId] -> pure $ Just newVersionId
-            _ -> error "Expected one new version ID"
+    >>= fmap Just . expectSingleResult
 
 updateVersionHubs :: PGS.Connection -> PKeyId -> ListDiff Hub -> IO ()
 updateVersionHubs conn postVersionId ListDiff { .. } = do
