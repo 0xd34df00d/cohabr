@@ -49,9 +49,9 @@ ghc-options:
 - -Wall
 
 executables:
-  cohabr-exe:
+  scraper-exe:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         app/Scraper
     ghc-options:
     - -threaded
     - -rtsopts
