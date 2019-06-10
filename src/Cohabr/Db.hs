@@ -117,6 +117,31 @@ instance Table CommentT where
   primaryKey = CommentId . cId
 
 
+data UserT f = User
+  { uId                         :: Columnar f PKeyId
+  , uUsername                   :: Columnar f Text
+  , uSourceId                   :: Columnar f (Maybe HabrId)
+  , uName                       :: Columnar f (Maybe Text)
+  , uNameLastUpdated            :: Columnar f (Maybe LocalTime)
+  , uSpecialization             :: Columnar f (Maybe Text)
+  , uSpecializationLastUpdated  :: Columnar f (Maybe LocalTime)
+  , uKarma                      :: Columnar f (Maybe Double)
+  , uKarmaVotes                 :: Columnar f (Maybe Int)
+  , uKarmaLastUpdated           :: Columnar f (Maybe LocalTime)
+  , uRating                     :: Columnar f (Maybe Double)
+  , uRatingLastUpdated          :: Columnar f (Maybe LocalTime)
+  , uCurrentAvatar              :: Columnar f (Maybe Int)
+  , uCurrentAvatarLastCheck     :: Columnar f (Maybe LocalTime)
+  , uDeleted                    :: Columnar f Bool
+  } deriving (Generic, Beamable)
+
+type User = UserT Identity
+
+instance Table UserT where
+  data PrimaryKey UserT f = UserId (Columnar f PKeyId) deriving (Generic, Beamable)
+  primaryKey = UserId . uId
+
+
 data CohabrDb f = CohabrDb
   { cPosts          :: f (TableEntity PostT)
   , cPostsVersions  :: f (TableEntity PostVersionT)
@@ -125,6 +150,7 @@ data CohabrDb f = CohabrDb
   , cFlags          :: f (TableEntity FlagT)
   , cPostsFlags     :: f (TableEntity PostFlagT)
   , cComments       :: f (TableEntity CommentT)
+  , cUsers          :: f (TableEntity UserT)
   } deriving (Generic, Database be)
 
 cohabrDb :: DatabaseSettings be CohabrDb
