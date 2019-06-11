@@ -98,16 +98,16 @@ instance Table PostFlagT where
 data CommentT f = Comment
   { cId         :: Columnar f PKeyId
   , cSourceId   :: Columnar f HabrId
-  , cParent     :: Columnar f PKeyId
+  , cParent     :: Columnar f (Maybe PKeyId)
   , cPostId     :: Columnar f PKeyId
-  , cUser       :: Columnar f String
-  , cDate       :: Columnar f LocalTime
-  , cText       :: Columnar f Text
-  , cChanged    :: Columnar f Bool
-  , cScorePlus  :: Columnar f Double
-  , cScoreMinus :: Columnar f Double
-  , cDeleted    :: Columnar f Bool
-  , cAuthor     :: Columnar f PKeyId
+  , cUser       :: Columnar f (Maybe String)
+  , cDate       :: Columnar f (Maybe LocalTime)
+  , cText       :: Columnar f (Maybe Text)
+  , cChanged    :: Columnar f (Maybe Bool)
+  , cScorePlus  :: Columnar f (Maybe Double)
+  , cScoreMinus :: Columnar f (Maybe Double)
+  , cDeleted    :: Columnar f (Maybe Bool)
+  , cAuthor     :: Columnar f (Maybe PKeyId)
   } deriving (Generic, Beamable)
 
 type Comment = CommentT Identity
