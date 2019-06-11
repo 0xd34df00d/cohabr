@@ -3,14 +3,14 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cohabr.Db.Updates
-{-( UpdateField(..)
+( UpdateField(..)
 , RawPostVersion(..)
 , ListDiff(..)
 
 , PostUpdateActions(..)
 , updatePost
 , insertPost
-)-} where
+) where
 
 import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as PGS
