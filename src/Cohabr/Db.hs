@@ -98,7 +98,7 @@ instance Table PostFlagT where
 data CommentT f = Comment
   { cId         :: Columnar f PKeyId
   , cSourceId   :: Columnar f HabrId
-  , cParent     :: Columnar f HabrId
+  , cParent     :: Columnar f PKeyId
   , cPostId     :: Columnar f PKeyId
   , cUser       :: Columnar f String
   , cDate       :: Columnar f LocalTime
