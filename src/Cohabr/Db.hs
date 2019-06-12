@@ -142,6 +142,21 @@ instance Table UserT where
   primaryKey = UserId . uId
 
 
+data UserAvatarT f = UserAvatar
+  { uaId            :: Columnar f PKeyId
+  , uaUser          :: Columnar f User
+  , uaBigImageUrl   :: Columnar f Text
+  , uaSmallImageUrl :: Columnar f Text
+  , discoveredDate  :: Columnar f (Maybe LocalTime)
+  } deriving (Generic, Beamable)
+
+type UserAvatar = UserAvatarT Identity
+
+instance Table UserAvatarT where
+  data PrimaryKey UserAvatarT f = UserAvatarId (Columnar f PKeyId) deriving (Generic, Beamable)
+  primaryKey = UserAvatarId . uaId
+
+
 data CohabrDb f = CohabrDb
   { cPosts          :: f (TableEntity PostT)
   , cPostsVersions  :: f (TableEntity PostVersionT)
@@ -151,6 +166,7 @@ data CohabrDb f = CohabrDb
   , cPostsFlags     :: f (TableEntity PostFlagT)
   , cComments       :: f (TableEntity CommentT)
   , cUsers          :: f (TableEntity UserT)
+  , cUserAvatars    :: f (TableEntity UserAvatarT)
   } deriving (Generic, Database be)
 
 cohabrDb :: DatabaseSettings be CohabrDb
