@@ -144,7 +144,7 @@ instance Table UserT where
 
 data UserAvatarT f = UserAvatar
   { uaId            :: Columnar f PKeyId
-  , uaUser          :: Columnar f User
+  , uaUser          :: Columnar f PKeyId
   , uaBigImageUrl   :: Columnar f Text
   , uaSmallImageUrl :: Columnar f Text
   , discoveredDate  :: Columnar f (Maybe LocalTime)
