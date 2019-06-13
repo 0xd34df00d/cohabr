@@ -138,12 +138,12 @@ makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case content
     }
   HT.CommentExisting { .. } -> common
     { cDeleted = val_ $ Just False
-    , cUser = val_ Nothing
-    , cDate = val_ Nothing
-    , cText = val_ Nothing
-    , cChanged = val_ Nothing
-    , cScorePlus = val_ Nothing
-    , cScoreMinus = val_ Nothing
+    , cUser = val_ $ Just $ HT.username user
+    , cDate = val_ $ Just timestamp
+    , cText = val_ $ Just commentText
+    , cChanged = val_ $ Just False
+    , cScorePlus = val_ $ Just $ HT.pos votes
+    , cScoreMinus = val_ $ Just $ HT.neg votes
     , cAuthor = val_ userId
     }
   where
