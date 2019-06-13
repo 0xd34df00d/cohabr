@@ -130,7 +130,7 @@ data UserT f = User
   , uKarmaLastUpdated           :: Columnar f (Maybe LocalTime)
   , uRating                     :: Columnar f (Maybe Double)
   , uRatingLastUpdated          :: Columnar f (Maybe LocalTime)
-  , uCurrentAvatar              :: Columnar f (Maybe Int)
+  , uCurrentAvatar              :: Columnar f (Maybe PKeyId)
   , uCurrentAvatarLastCheck     :: Columnar f (Maybe LocalTime)
   , uDeleted                    :: Columnar f Bool
   } deriving (Generic, Beamable)
