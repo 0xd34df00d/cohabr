@@ -28,6 +28,7 @@ dependencies:
 - dom-selector
 - either
 - feed
+- filepath
 - hashable
 - html-conduit
 - interpolate

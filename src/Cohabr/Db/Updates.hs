@@ -24,6 +24,7 @@ import Database.Beam.Postgres.Full hiding(insert)
 import Database.Beam.Postgres.Syntax
 import qualified Database.Beam.Postgres.Full as BPG
 import GHC.Stack
+import System.FilePath
 
 import Cohabr.Db
 import Cohabr.Db.HelperTypes
@@ -161,6 +162,59 @@ makePostRecord habrId versionId HT.Post { .. } = Post
   }
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
+
+ensureUserExists :: Connection -> HT.UserInfo -> IO PKeyId
+ensureUserExists conn HT.UserInfo { .. } = runBeamPostgres conn $ do
+  maybeId <- runSelectReturningOne $ select query
+  case maybeId of
+    Just userId -> pure userId
+    Nothing -> do
+      newUid <- fmap uId $ runInsertReturningOne $
+                  insert (cUsers cohabrDb) $ insertExpressions [makeUserRecord username]
+      case avatar of
+        HT.DefaultAvatar {} -> pure ()
+        HT.CustomAvatar { .. } -> do
+          avatarId <- fmap uaId $ runInsertReturningOne $
+                        insert (cUserAvatars cohabrDb) $ insertExpressions [makeAvatarRecord newUid avatarLink]
+          updates <- runUpdateReturningList $ update
+                        (cUsers cohabrDb)
+                        (\u -> uCurrentAvatar u <-. val_ (Just avatarId))
+                        (\u -> uId u ==. val_ newUid)
+          unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+      pure newUid
+  where
+    query = fmap uId $ filter_ (\u -> uUsername u ==. val_ username) $ all_ $ cUsers cohabrDb
+
+makeUserRecord :: T.Text -> forall s. UserT (QExpr Postgres s)
+makeUserRecord username = User
+  { uId = default_
+  , uUsername = val_ username
+  , uSourceId = val_ Nothing
+  , uName = val_ Nothing
+  , uNameLastUpdated = val_ Nothing
+  , uSpecialization = val_ Nothing
+  , uSpecializationLastUpdated = val_ Nothing
+  , uKarma = val_ Nothing
+  , uKarmaVotes = val_ Nothing
+  , uKarmaLastUpdated = val_ Nothing
+  , uRating = val_ Nothing
+  , uRatingLastUpdated = val_ Nothing
+  , uCurrentAvatar = val_ Nothing
+  , uCurrentAvatarLastCheck = val_ Nothing
+  , uDeleted = val_ False
+  }
+
+makeAvatarRecord :: PKeyId -> T.Text -> forall s. UserAvatarT (QExpr Postgres s)
+makeAvatarRecord userId link = UserAvatar
+  { uaId = default_
+  , uaUser = val_ userId
+  , uaBigImageUrl = val_ link
+  , uaSmallImageUrl = val_ smallLink
+  , discoveredDate = default_
+  }
+  where
+    linkStr = T.unpack link
+    smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
 
 ensureHubsExist :: Connection -> [HT.Hub] -> IO ()
 ensureHubsExist conn hubs = runBeamPostgres conn $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
