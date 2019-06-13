@@ -20,3 +20,7 @@ findPostByHabrId habrId conn = runBeamPostgres conn $ runSelectReturningOne $ se
       post <- filter_ (\post -> pSourceId post ==. val_ habrId) $ all_ $ cPosts cohabrDb
       postVersion <- filter_ (\postVersion -> pvId postVersion ==. pCurrentVersion post) $ all_ $ cPostsVersions cohabrDb
       pure (post, postVersion)
+
+findCommentIdByHabrId :: HabrId -> Connection -> IO (Maybe PKeyId)
+findCommentIdByHabrId habrId conn = runBeamPostgres conn $ runSelectReturningOne $ select query
+  where query = fmap cId $ filter_ (\comm -> cSourceId comm ==. val_ habrId) $ all_ $ cComments cohabrDb
