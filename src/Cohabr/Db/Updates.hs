@@ -74,7 +74,7 @@ runUpdateReturningOne f = runUpdateReturningList f >>= expectSingleResult
 
 updatePost :: Connection -> PostUpdateActions -> IO ()
 updatePost conn PostUpdateActions { .. } = do
-  ensureHubsExisting conn $ added hubsDiff
+  ensureHubsExist conn $ added hubsDiff
 
   PGS.withTransaction conn $ runBeamPostgres conn $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
@@ -162,8 +162,8 @@ makePostRecord habrId versionId HT.Post { .. } = Post
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
 
-ensureHubsExisting :: Connection -> [HT.Hub] -> IO ()
-ensureHubsExisting conn hubs = runBeamPostgres conn $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
+ensureHubsExist :: Connection -> [HT.Hub] -> IO ()
+ensureHubsExist conn hubs = runBeamPostgres conn $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
   where
     query = insertValues $ (\h -> Hub { hId = makeHubId h, hName = HT.hubName h }) <$> hubs
 
