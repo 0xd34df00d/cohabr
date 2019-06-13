@@ -100,12 +100,12 @@ data CommentT f = Comment
   , cSourceId   :: Columnar f HabrId
   , cParent     :: Columnar f (Maybe PKeyId)
   , cPostId     :: Columnar f PKeyId
-  , cUser       :: Columnar f (Maybe String)
+  , cUser       :: Columnar f (Maybe Text)
   , cDate       :: Columnar f (Maybe LocalTime)
   , cText       :: Columnar f (Maybe Text)
   , cChanged    :: Columnar f (Maybe Bool)
-  , cScorePlus  :: Columnar f (Maybe Double)
-  , cScoreMinus :: Columnar f (Maybe Double)
+  , cScorePlus  :: Columnar f (Maybe Int)
+  , cScoreMinus :: Columnar f (Maybe Int)
   , cDeleted    :: Columnar f (Maybe Bool)
   , cAuthor     :: Columnar f (Maybe PKeyId)
   } deriving (Generic, Beamable)
