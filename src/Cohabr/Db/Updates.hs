@@ -124,17 +124,19 @@ updateVersionHubs postVersionId ListDiff { .. } = do
       where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
 
 insertPost :: Connection -> HabrId -> HT.Post -> IO PKeyId
-insertPost conn habrId post@HT.Post { .. } = PGS.withTransaction conn $ runBeamPostgres conn $ do
-  versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
-                  insertExpressions $ pure $ makePostVersionRecord post
-  postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
-                  insertExpressions $ pure $ makePostRecord habrId versionId post
-  updates <- runUpdateReturningList $ update
-              (cPostsVersions cohabrDb)
-              (\pv -> pvPostId pv <-. val_ postId)
-              (\pv -> pvId pv ==. val_ versionId)
-  unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
-  pure postId
+insertPost conn habrId post@HT.Post { .. } = do
+  userId <- ensureUserExists conn user
+  PGS.withTransaction conn $ runBeamPostgres conn $ do
+    versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
+                    insertExpressions [makePostVersionRecord post]
+    postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
+                    insertExpressions [makePostRecord habrId versionId userId post]
+    updates <- runUpdateReturningList $ update
+                (cPostsVersions cohabrDb)
+                (\pv -> pvPostId pv <-. val_ postId)
+                (\pv -> pvId pv ==. val_ versionId)
+    unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+    pure postId
 
 makePostVersionRecord :: HT.Post -> forall s. PostVersionT (QExpr Postgres s)
 makePostVersionRecord HT.Post { .. } = PostVersion
@@ -145,8 +147,8 @@ makePostVersionRecord HT.Post { .. } = PostVersion
   , pvContent = val_ body
   }
 
-makePostRecord :: HabrId -> PKeyId -> HT.Post -> forall s. PostT (QExpr Postgres s)
-makePostRecord habrId versionId HT.Post { .. } = Post
+makePostRecord :: HabrId -> PKeyId -> PKeyId -> HT.Post -> forall s. PostT (QExpr Postgres s)
+makePostRecord habrId versionId userId HT.Post { .. } = Post
   { pId = default_
   , pSourceId = val_ habrId
   , pUser = val_ $ Just $ HT.username user
@@ -158,7 +160,7 @@ makePostRecord habrId versionId HT.Post { .. } = Post
   , pOrigViews = val_ $ Just $ HT.viewsCount views
   , pOrigViewsNearly = val_ $ Just $ not $ HT.isExactCount views
   , pCurrentVersion = val_ versionId
-  , pAuthor = val_ Nothing
+  , pAuthor = val_ $ Just userId
   }
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
