@@ -3,11 +3,13 @@
 
 module Cohabr.Db.Inserts
 ( insertPost
+, insertComment
 ) where
 
 import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Monad
+import Data.Maybe
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -15,6 +17,7 @@ import System.FilePath
 
 import Cohabr.Db
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.Queries
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
@@ -112,3 +115,50 @@ makeAvatarRecord userId link = UserAvatar
   where
     linkStr = T.unpack link
     smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
+
+insertComment :: Connection -> PKeyId -> HT.Comment -> IO PKeyId
+insertComment conn postId comment = do
+  parentCommentId <- case HT.parentId comment of
+    0 -> pure Nothing
+    cid -> do
+      found <- findCommentIdByHabrId (HabrId cid) conn
+      guard $ isJust found             -- TODO error handling
+      pure found
+  userId <- case HT.contents comment of
+    HT.CommentDeleted -> pure Nothing
+    HT.CommentExisting { .. } -> Just <$> ensureUserExists conn user
+  let rec = makeCommentRecord postId parentCommentId userId comment
+  runBeamPostgres conn $ fmap cId $ runInsertReturningOne $
+    insert (cComments cohabrDb) $ insertExpressions [rec]
+
+makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
+makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of
+  HT.CommentDeleted -> common
+    { cDeleted = val_ $ Just True
+    }
+  HT.CommentExisting { .. } -> common
+    { cDeleted = val_ $ Just False
+    , cUser = val_ Nothing
+    , cDate = val_ Nothing
+    , cText = val_ Nothing
+    , cChanged = val_ Nothing
+    , cScorePlus = val_ Nothing
+    , cScoreMinus = val_ Nothing
+    , cAuthor = val_ userId
+    }
+  where
+    common :: forall s. CommentT (QExpr Postgres s)
+    common = Comment
+      { cId = default_
+      , cSourceId = val_ $ HabrId commentId
+      , cParent = val_ parentCommentId
+      , cPostId = val_ postId
+      , cUser = val_ Nothing
+      , cDate = val_ Nothing
+      , cText = val_ Nothing
+      , cChanged = val_ Nothing
+      , cScorePlus = val_ Nothing
+      , cScoreMinus = val_ Nothing
+      , cDeleted = val_ Nothing
+      , cAuthor = val_ Nothing
+      }
