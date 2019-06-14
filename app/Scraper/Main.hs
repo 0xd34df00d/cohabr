@@ -30,7 +30,7 @@ refetchPost postId = do
   case parseResult of
     Left errs -> hPutStr stderr $ unlines errs
     Right (post, comments) -> do
-      maybeOurVersion <- withConnection $ findPostByHabrId postId
+      maybeOurVersion <- withConnection $ \conn -> findPostByHabrId conn postId
       case maybeOurVersion of
         Nothing -> putStrLn "new post!"
         Just (ourPost, ourVersion) -> putStrLn "found post!"
@@ -42,7 +42,7 @@ pollRSS = do
   case maybeIds of
     Nothing -> undefined
     Just ids -> do
-      recs <- withConnection $ selectMissingPosts $ HabrId <$> ids
+      recs <- withConnection $ \conn -> selectMissingPosts conn $ HabrId <$> ids
       mapM_ refetchPost [head recs]
 
 main :: IO ()

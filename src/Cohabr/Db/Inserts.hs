@@ -124,7 +124,7 @@ insertComment conn postId comment = do
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
     cid -> do
-      found <- findCommentIdByHabrId (HabrId cid) conn
+      found <- findCommentIdByHabrId conn $ HabrId cid
       guard $ isJust found             -- TODO error handling
       pure found
   userId <- case HT.contents comment of
