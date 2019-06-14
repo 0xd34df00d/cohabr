@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
-{-# LANGUAGE TypeApplications, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Habr.Diff where
 
@@ -25,7 +25,7 @@ data StoredPostInfo = StoredPostInfo
 postUpdateActions :: PKeyId -> StoredPostInfo -> HT.Post -> PostUpdateActions
 postUpdateActions postId StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. }
   where
-    hubsDiff = calcDiff @HT.Hub storedPostHubs hubs
+    hubsDiff = calcDiff storedPostHubs hubs
 
     PostStats { votes = Votes { .. }, .. } = postStats
 
