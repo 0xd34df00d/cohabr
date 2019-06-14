@@ -124,3 +124,10 @@ main = hspec $ do
       let expectedHubs = sort $ HT.hubs testPost
       let storedHubs = sort $ fromStoredHub <$> hubs
       storedHubs `shouldBe` expectedHubs
+    it "produces the same tags" $ do
+      tags <- liftIO $ withConnection $ \conn -> do
+        vid <- pvId . snd . fromJust <$> findPostByHabrId conn testPostId
+        getPostVersionTags conn vid
+      let expectedTags = sort $ HT.tags testPost
+      let storedTags = sort $ HT.Tag . ptTag <$> tags
+      storedTags `shouldBe` expectedTags
