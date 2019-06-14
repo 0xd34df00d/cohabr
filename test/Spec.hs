@@ -6,6 +6,7 @@ import Test.Hspec
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
 import Control.Monad.IO.Class
+import Data.Functor
 import Data.Time.Calendar
 import Data.Time.LocalTime
 
@@ -17,6 +18,23 @@ withConnection :: (PGS.Connection -> IO c) -> IO c
 withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
   PGS.close
+
+clearTables :: IO ()
+clearTables = void $ withConnection $ \conn ->
+  mapM_ (\table -> PGS.execute_ conn $ "TRUNCATE TABLE " <> table <> " RESTART IDENTITY CASCADE")
+    [ "comments"
+    , "flags"
+    , "hubs"
+    , "post_aliases"
+    , "posts"
+    , "posts_flags"
+    , "posts_hubs"
+    , "posts_tags"
+    , "posts_versions"
+    , "saved_images"
+    , "user_avatars"
+    , "users"
+    ]
 
 testPost :: HT.Post
 testPost = HT.Post
@@ -42,6 +60,10 @@ testPost = HT.Post
 
 main :: IO ()
 main = hspec $ do
+  describe "Preparing the table" $
+    it "drops the existing data" $ do
+      liftIO clearTables
+      pure () :: Expectation
   describe "Inserting new posts" $ do
     it "inserts a new post" $ do
       val <- liftIO $ withConnection $ \conn -> insertPost conn (HabrId 1) testPost
