@@ -7,6 +7,7 @@ import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
 import Control.Monad.IO.Class
 import Data.Functor
+import Data.List
 import Data.Maybe
 import Data.Time.Calendar
 import Data.Time.Clock
@@ -16,6 +17,7 @@ import Cohabr.Db
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Queries
+import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
 withConnection :: (PGS.Connection -> IO c) -> IO c
@@ -105,3 +107,10 @@ main = hspec $ do
 
       pvTitle `shouldBe` Just title
       pvContent `shouldBe` body
+    it "produces the same hubs" $ do
+      hubs <- liftIO $ withConnection $ \conn -> do
+        vid <- pvId . snd . fromJust <$> findPostByHabrId conn testPostId
+        getPostVersionHubs conn vid
+      let expectedHubs = sort $ HT.hubs testPost
+      let storedHubs = sort $ fromStoredHub <$> hubs
+      storedHubs `shouldBe` expectedHubs
