@@ -27,7 +27,7 @@ import qualified Habr.Types as HT
 insertPost :: Connection -> HabrId -> HT.Post -> IO PKeyId
 insertPost conn habrId post@HT.Post { .. } = do
   userId <- ensureUserExists conn user
-  PGS.withTransaction conn $ runBeamPostgres conn $ do
+  PGS.withTransaction conn $ runBeamPostgresDebug putStrLn conn $ do
     versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
                     insertExpressions [makePostVersionRecord post]
     postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
@@ -67,7 +67,7 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
 
 ensureUserExists :: Connection -> HT.UserInfo -> IO PKeyId
-ensureUserExists conn HT.UserInfo { .. } = runBeamPostgres conn $ do
+ensureUserExists conn HT.UserInfo { .. } = runBeamPostgresDebug putStrLn conn $ do
   maybeId <- runSelectReturningOne $ select query
   case maybeId of
     Just userId -> pure userId
@@ -131,7 +131,7 @@ insertComment conn postId comment = do
     HT.CommentDeleted -> pure Nothing
     HT.CommentExisting { .. } -> Just <$> ensureUserExists conn user
   let rec = makeCommentRecord postId parentCommentId userId comment
-  runBeamPostgres conn $ fmap cId $ runInsertReturningOne $
+  runBeamPostgresDebug putStrLn conn $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)

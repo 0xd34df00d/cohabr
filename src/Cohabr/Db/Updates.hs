@@ -56,7 +56,7 @@ data PostUpdateActions = PostUpdateActions
 updatePost :: Connection -> PostUpdateActions -> IO ()
 updatePost conn PostUpdateActions { .. } = do
   ensureHubsExist conn $ added hubsDiff
-  PGS.withTransaction conn $ runBeamPostgres conn $ do
+  PGS.withTransaction conn $ runBeamPostgresDebug putStrLn conn $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
     let isNewVersion = isJust maybeNewVersionId
     let postUpdates' = postUpdates <> catMaybes [
