@@ -51,7 +51,7 @@ data PostStats = PostStats
   , views :: PostViews
   } deriving (Eq, Ord, Show)
 
-data Flag = RssFeed | Draftbox | News | Recovery | Tutorial | Translation | Sandbox | NormalPost
+data Flag = RssFeed | Draftbox | News | Recovery | Tutorial | Translation | Sandbox
   deriving (Eq, Ord, Show, Generic, Hashable)
 
 newtype Tag = Tag
