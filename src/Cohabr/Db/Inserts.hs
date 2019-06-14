@@ -1,9 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, FlexibleContexts #-}
 
 module Cohabr.Db.Inserts
 ( insertPost
 , insertComment
+, insertVersionHubs
+, insertVersionTags
 ) where
 
 import qualified Data.Text as T
@@ -13,6 +15,7 @@ import Data.Maybe
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
+import qualified Database.Beam.Postgres.Full as BPG
 import System.FilePath
 
 import Cohabr.Db
@@ -161,4 +164,18 @@ makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case content
       , cScoreMinus = val_ Nothing
       , cDeleted = val_ Nothing
       , cAuthor = val_ Nothing
+      }
+
+insertVersionHubs :: MonadBeam Postgres m => PKeyId -> [HT.Hub] -> m ()
+insertVersionHubs postVersionId hubs = runInsert $ BPG.insert (cPostsHubs cohabrDb) query conflictIgnore
+  where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
+
+insertVersionTags :: MonadBeam Postgres m => PKeyId -> [HT.Tag] -> m ()
+insertVersionTags postVersionId tags = runInsert $ BPG.insert (cPostsTags cohabrDb) (insertExpressions $ mkTag <$> tags) conflictIgnore
+  where
+    mkTag :: HT.Tag -> forall s. PostTagT (QExpr Postgres s)
+    mkTag tag = PostTag
+      { ptId = default_
+      , ptPostVersion = val_ postVersionId
+      , ptTag = val_ $ HT.name tag
       }

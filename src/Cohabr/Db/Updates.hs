@@ -21,9 +21,9 @@ import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 import Database.Beam.Postgres.Full hiding(insert)
 import Database.Beam.Postgres.Syntax
-import qualified Database.Beam.Postgres.Full as BPG
 
 import Cohabr.Db
+import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
@@ -89,9 +89,9 @@ updatePostVersion postId (Just RawPostVersion { .. }) =
       }
 
 updateVersionHubs :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Hub -> m ()
-updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = add allNew
+updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionHubs postVersionId allNew
                                                              | otherwise = do
-  add added
+  insertVersionHubs postVersionId added
   remCnt <- remove removed
   unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
   where
@@ -102,14 +102,10 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = ad
                       (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
                       (const countAll_))
 
-    add [] = pure ()
-    add hubs = runInsert $ BPG.insert (cPostsHubs cohabrDb) query conflictIgnore
-      where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
-
 updateVersionTags :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Tag -> m ()
-updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = add allNew
+updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionTags postVersionId allNew
                                                              | otherwise = do
-  add added
+  insertVersionTags postVersionId added
   remCnt <- remove removed
   unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
   where
@@ -119,13 +115,3 @@ updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = ad
                       (cPostsTags cohabrDb)
                       (\h -> ptTag h `in_` (val_ . HT.name <$> tags) &&. ptPostVersion h ==. val_ postVersionId)
                       (const countAll_))
-
-    add [] = pure ()
-    add tags = runInsert $ BPG.insert (cPostsTags cohabrDb) (insertExpressions $ mkTag <$> tags) conflictIgnore
-
-    mkTag :: HT.Tag -> forall s. PostTagT (QExpr Postgres s)
-    mkTag tag = PostTag
-      { ptId = default_
-      , ptPostVersion = val_ postVersionId
-      , ptTag = val_ $ HT.name tag
-      }
