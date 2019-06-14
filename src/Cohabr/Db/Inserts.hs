@@ -37,6 +37,10 @@ insertPost conn habrId post@HT.Post { .. } = do
                 (\pv -> pvPostId pv <-. val_ postId)
                 (\pv -> pvId pv ==. val_ versionId)
     unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+
+    insertVersionHubs versionId hubs
+    insertVersionTags versionId tags
+
     pure postId
 
 makePostVersionRecord :: HT.Post -> forall s. PostVersionT (QExpr Postgres s)
