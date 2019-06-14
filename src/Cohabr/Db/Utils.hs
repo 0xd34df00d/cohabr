@@ -8,6 +8,7 @@ module Cohabr.Db.Utils
 , runUpdateReturningOne
 , ensureHubsExist
 , makeHubId
+, fromStoredHub
 , conflictIgnore
 ) where
 
@@ -52,6 +53,13 @@ makeHubId HT.Hub { .. } = prefix hubKind <> hubCode
   where
     prefix HT.NormalHub = mempty
     prefix HT.CompanyHub = "company-"
+
+fromStoredHub :: (PostHub, Hub) -> HT.Hub
+fromStoredHub (PostHub { .. }, Hub { .. }) = HT.Hub code hName kind
+  where
+    (code, kind) | not $ cmpPref `T.isPrefixOf` hId = (hId, HT.NormalHub)
+                 | otherwise = (T.drop (T.length cmpPref) hId, HT.CompanyHub)
+    cmpPref = "company-"
 
 conflictIgnore :: Beamable tbl => PgInsertOnConflict tbl
 conflictIgnore = onConflict anyConflict onConflictDoNothing
