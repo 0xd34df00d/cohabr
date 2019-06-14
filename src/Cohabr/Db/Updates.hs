@@ -58,6 +58,7 @@ updatePost conn PostUpdateActions { .. } = do
 
   PGS.withTransaction conn $ runBeamPostgres conn $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
+    let isNewVersion = isJust maybeNewVersionId
     let postUpdates' = postUpdates <> catMaybes [
             (\verId -> UpdateField { accessor = pCurrentVersion, newVal = verId }) <$> maybeNewVersionId
           ]
@@ -65,7 +66,8 @@ updatePost conn PostUpdateActions { .. } = do
                     (cPosts cohabrDb)
                     (toUpdaterConcat postUpdates')
                     (\post -> pId post ==. val_ postId)
-    updateVersionHubs (pCurrentVersion currentRow) hubsDiff
+    let curVerId = pCurrentVersion currentRow
+    updateVersionHubs curVerId isNewVersion hubsDiff
 
 toUpdater :: Beamable table => UpdateField table -> (forall s. table (QField s) -> QAssignment Postgres s)
 toUpdater UpdateField { .. } = \table -> accessor table <-. val_ newVal
@@ -85,10 +87,11 @@ updatePostVersion postId (Just RawPostVersion { .. }) =
       , pvContent = val_ rawPVText
       }
 
-updateVersionHubs :: MonadBeam Postgres m => PKeyId -> ListDiff HT.Hub -> m ()
-updateVersionHubs postVersionId ListDiff { .. } = do
-  remCnt <- remove removed
+updateVersionHubs :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Hub -> m ()
+updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = add allNew
+                                                             | otherwise = do
   add added
+  remCnt <- remove removed
   unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
   where
     remove [] = pure 0
