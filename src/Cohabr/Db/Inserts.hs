@@ -41,6 +41,8 @@ insertPost conn habrId post@HT.Post { .. } = do
     insertVersionHubs versionId hubs
     insertVersionTags versionId tags
 
+    insertPostFlags postId flags
+
     pure postId
 
 makePostVersionRecord :: HT.Post -> forall s. PostVersionT (QExpr Postgres s)
@@ -183,3 +185,12 @@ insertVersionTags postVersionId tags = runInsert $ BPG.insert (cPostsTags cohabr
       , ptPostVersion = val_ postVersionId
       , ptTag = val_ $ HT.name tag
       }
+
+insertPostFlags :: MonadBeam Postgres m => PKeyId -> [HT.Flag] -> m ()
+insertPostFlags postId flags = runInsert $ insert (cPostsFlags cohabrDb) $ insertExpressions $ mkFlag <$> flags
+  where
+    mkFlag :: HT.Flag -> forall s. PostFlagT (QExpr Postgres s)
+    mkFlag flag = PostFlag
+                    { pfPost = val_ postId
+                    , pfFlag = val_ $ flagToStr flag
+                    }
