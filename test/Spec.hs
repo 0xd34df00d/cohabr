@@ -58,7 +58,7 @@ testPost = HT.Post
   , HT.hubs = [ HT.Hub "hubcode" "Hub code" HT.NormalHub
               , HT.Hub "initech" "Initech company" HT.CompanyHub
               ]
-  , HT.tags = [ HT.Tag "tag1" "http://link1", HT.Tag "tag2" "http://link2" ]
+  , HT.tags = [ HT.Tag "tag1", HT.Tag "tag2" ]
   , HT.flags = [ HT.News, HT.Translation ]
   , HT.link = Just $ HT.Link "http://ya.ru" "Yayaya"
   , HT.user = HT.UserInfo
