@@ -73,9 +73,12 @@ parseTags root = forM (queryT [jq|.post_tag|] root) $ \cur -> do
   pure Tag { .. }
 
 parseFlags :: MonadError ParseError m => Cursor -> m [Flag]
-parseFlags root = pure $ nub $ filter (/= NormalPost) $ f <$> queryT [jq|.post__type-label|] root
+parseFlags root = do
+  result <- mapM f $ queryT [jq|.post__type-label|] root
+  pure $ nub result
   where
-    f cur = HM.lookupDefault NormalPost (innerHtml cur) theMap
+    f cur | Just res <- HM.lookup (innerHtml cur) theMap = pure res
+          | otherwise = throwParseError [i|unknown post flag: `#{innerHtml cur}`|]
     theMap = HM.fromList [ ("В черновиках", Draftbox)
                          , ("Перевод", Translation)
                          , ("Из песочницы", Sandbox)
