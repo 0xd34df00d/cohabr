@@ -10,8 +10,12 @@ module Cohabr.Db.Utils
 , makeHubId
 , fromStoredHub
 , conflictIgnore
+
+, flagToStr
+, strToFlag
 ) where
 
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
@@ -63,3 +67,21 @@ fromStoredHub (PostHub { .. }, Hub { .. }) = HT.Hub code hName kind
 
 conflictIgnore :: Beamable tbl => PgInsertOnConflict tbl
 conflictIgnore = onConflict anyConflict onConflictDoNothing
+
+flagToStr :: HT.Flag -> T.Text
+flagToStr flag = case flag of
+                      HT.RssFeed      -> "rss_feed"
+                      HT.Draftbox     -> "draftbox"
+                      HT.News         -> "news"
+                      HT.Recovery     -> "recovery"
+                      HT.Tutorial     -> "tutorial"
+                      HT.Translation  -> "translation"
+                      HT.Sandbox      -> "sandbox"
+
+strToFlag :: T.Text -> Maybe HT.Flag
+strToFlag str = HM.lookup str strToFlagMap
+
+strToFlagMap :: HM.HashMap T.Text HT.Flag
+strToFlagMap = HM.fromList [ (flagToStr flag, flag)
+                           | flag <- [minBound .. maxBound]
+                           ]
