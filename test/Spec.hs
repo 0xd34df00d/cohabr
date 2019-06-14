@@ -54,8 +54,8 @@ prepopulateHubs = void $ withConnection $ \conn ->
 prepopulateFlags :: IO ()
 prepopulateFlags = void $ withConnection $ \conn ->
   runBeamPostgres conn $ runInsert $ insert (cFlags cohabrDb) $ insertValues
-    [ Flag { fTooltip = mempty, fText = mempty, .. }
-    | fId <- [ "draftbox", "translation", "sandbox", "tutorial", "news", "recovery", "rss_feed" ]
+    [ Flag { fTooltip = mempty, fText = mempty, fId = flagToStr flag }
+    | flag <- [minBound .. maxBound]
     ]
 
 testPost :: HT.Post
