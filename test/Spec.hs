@@ -51,6 +51,13 @@ prepopulateHubs = void $ withConnection $ \conn ->
     | hub <- HT.hubs testPost
     ]
 
+prepopulateFlags :: IO ()
+prepopulateFlags = void $ withConnection $ \conn ->
+  runBeamPostgres conn $ runInsert $ insert (cFlags cohabrDb) $ insertValues
+    [ Flag { fTooltip = mempty, fText = mempty, .. }
+    | fId <- [ "draftbox", "translation", "sandbox", "tutorial", "news", "recovery", "rss_feed" ]
+    ]
+
 testPost :: HT.Post
 testPost = HT.Post
   { HT.title = "Test post title"
@@ -82,6 +89,7 @@ main = hspec $ do
     it "drops the existing data" $ do
       liftIO clearTables
       liftIO prepopulateHubs
+      liftIO prepopulateFlags
       pure () :: Expectation
   describe "Inserting new post" $ do
     it "inserts a new post" $
