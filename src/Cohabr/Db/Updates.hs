@@ -56,7 +56,6 @@ data PostUpdateActions = PostUpdateActions
 updatePost :: Connection -> PostUpdateActions -> IO ()
 updatePost conn PostUpdateActions { .. } = do
   ensureHubsExist conn $ added hubsDiff
-
   PGS.withTransaction conn $ runBeamPostgres conn $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
     let isNewVersion = isJust maybeNewVersionId
@@ -69,6 +68,7 @@ updatePost conn PostUpdateActions { .. } = do
                     (\post -> pId post ==. val_ postId)
     let curVerId = pCurrentVersion currentRow
     updateVersionHubs curVerId isNewVersion hubsDiff
+    updateVersionTags curVerId isNewVersion tagsDiff
 
 toUpdater :: Beamable table => UpdateField table -> (forall s. table (QField s) -> QAssignment Postgres s)
 toUpdater UpdateField { .. } = \table -> accessor table <-. val_ newVal
@@ -105,3 +105,27 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = ad
     add [] = pure ()
     add hubs = runInsert $ BPG.insert (cPostsHubs cohabrDb) query conflictIgnore
       where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
+
+updateVersionTags :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Tag -> m ()
+updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = add allNew
+                                                             | otherwise = do
+  add added
+  remCnt <- remove removed
+  unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
+  where
+    remove [] = pure 0
+    remove tags = expectSingleResult =<< runPgDeleteReturningList
+                    (deleteReturning
+                      (cPostsTags cohabrDb)
+                      (\h -> ptTag h `in_` (val_ . HT.name <$> tags) &&. ptPostVersion h ==. val_ postVersionId)
+                      (const countAll_))
+
+    add [] = pure ()
+    add tags = runInsert $ BPG.insert (cPostsTags cohabrDb) (insertExpressions $ mkTag <$> tags) conflictIgnore
+
+    mkTag :: HT.Tag -> forall s. PostTagT (QExpr Postgres s)
+    mkTag tag = PostTag
+      { ptId = default_
+      , ptPostVersion = val_ postVersionId
+      , ptTag = val_ $ HT.name tag
+      }
