@@ -20,12 +20,14 @@ data StoredPostInfo = StoredPostInfo
   { storedPost :: Db.Post
   , storedCurrentVersion :: Db.PostVersion
   , storedPostHubs :: [HT.Hub]
+  , storedPostTags :: [HT.Tag]
   }
 
 postUpdateActions :: PKeyId -> StoredPostInfo -> HT.Post -> PostUpdateActions
 postUpdateActions postId StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. }
   where
     hubsDiff = calcDiff storedPostHubs hubs
+    tagsDiff = calcDiff storedPostTags tags
 
     PostStats { votes = Votes { .. }, .. } = postStats
 

@@ -49,6 +49,7 @@ data PostUpdateActions = PostUpdateActions
   { postId :: PKeyId
   , postUpdates :: [UpdateField PostT]
   , hubsDiff :: ListDiff HT.Hub
+  , tagsDiff :: ListDiff HT.Tag
   , newPostVersion :: Maybe RawPostVersion
   }
 
