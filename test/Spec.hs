@@ -7,11 +7,13 @@ import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
 import Control.Monad.IO.Class
 import Data.Functor
-import Data.List
+import Data.List(sort)
 import Data.Maybe
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
+import Database.Beam hiding(timestamp)
+import Database.Beam.Postgres
 
 import Cohabr.Db
 import Cohabr.Db.Inserts
@@ -40,6 +42,13 @@ clearTables = void $ withConnection $ \conn ->
     , "saved_images"
     , "user_avatars"
     , "users"
+    ]
+
+prepopulateHubs :: IO ()
+prepopulateHubs = void $ withConnection $ \conn ->
+  runBeamPostgres conn $ runInsert $ insert (cHubs cohabrDb) $ insertValues
+    [ Hub { hId = makeHubId hub, hName = HT.hubName hub }
+    | hub <- HT.hubs testPost
     ]
 
 testPost :: HT.Post
@@ -72,6 +81,7 @@ main = hspec $ do
   describe "Preparing the table" $
     it "drops the existing data" $ do
       liftIO clearTables
+      liftIO prepopulateHubs
       pure () :: Expectation
   describe "Inserting new post" $ do
     it "inserts a new post" $
