@@ -94,6 +94,18 @@ instance Table PostFlagT where
   data PrimaryKey PostFlagT f = PostFlagId (Columnar f PKeyId) (Columnar f Text) deriving (Generic, Beamable)
   primaryKey PostFlag { .. } = PostFlagId pfPost pfFlag
 
+data PostTagT f = PostTag
+  { ptId          :: Columnar f PKeyId
+  , ptTag         :: Columnar f Text
+  , ptPostVersion :: Columnar f PKeyId
+  } deriving (Generic, Beamable)
+
+type PostTag = PostTagT Identity
+
+instance Table PostTagT where
+  data PrimaryKey PostTagT f = PostTagId (Columnar f PKeyId) deriving (Generic, Beamable)
+  primaryKey = PostTagId . ptId
+
 
 data CommentT f = Comment
   { cId         :: Columnar f PKeyId
@@ -164,6 +176,7 @@ data CohabrDb f = CohabrDb
   , cPostsHubs      :: f (TableEntity PostHubT)
   , cFlags          :: f (TableEntity FlagT)
   , cPostsFlags     :: f (TableEntity PostFlagT)
+  , cPostsTags      :: f (TableEntity PostTagT)
   , cComments       :: f (TableEntity CommentT)
   , cUsers          :: f (TableEntity UserT)
   , cUserAvatars    :: f (TableEntity UserAvatarT)
