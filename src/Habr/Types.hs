@@ -40,11 +40,6 @@ data Comment = Comment
   , children :: [Comment]
   } deriving (Eq, Ord, Show)
 
-data Classifier = Classifier
-  { name :: T.Text
-  , link :: T.Text
-  } deriving (Eq, Ord, Show)
-
 data PostViews = PostViews
   { isExactCount :: Bool
   , viewsCount :: Int
