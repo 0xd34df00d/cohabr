@@ -52,7 +52,7 @@ data PostStats = PostStats
   } deriving (Eq, Ord, Show)
 
 data Flag = RssFeed | Draftbox | News | Recovery | Tutorial | Translation | Sandbox
-  deriving (Eq, Ord, Show, Generic, Hashable)
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic, Hashable)
 
 newtype Tag = Tag
   { name :: T.Text
