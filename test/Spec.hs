@@ -139,3 +139,10 @@ main = hspec $ do
       let expectedTags = sort $ HT.tags testPost
       let storedTags = sort $ HT.Tag . ptTag <$> tags
       storedTags `shouldBe` expectedTags
+    it "produces the same flags" $ do
+      flags <- liftIO $ withConnection $ \conn -> do
+        pid <- pId . fst . fromJust <$> findPostByHabrId conn testPostId
+        getPostFlags conn pid
+      let expectedFlags = sort $ HT.flags testPost
+      let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
+      storedFlags `shouldBe` expectedFlags
