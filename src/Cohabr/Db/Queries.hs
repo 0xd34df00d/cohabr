@@ -33,6 +33,10 @@ getPostVersionTags :: Connection -> PKeyId -> IO [PostTag]
 getPostVersionTags conn postVersion = runBeamPostgresDebug putStrLn conn $ runSelectReturningList $ select query
   where query = filter_ (\pt -> ptPostVersion pt ==. val_ postVersion) $ all_ $ cPostsTags cohabrDb
 
+getPostFlags :: Connection -> PKeyId -> IO [PostFlag]
+getPostFlags conn postId = runBeamPostgresDebug putStrLn conn $ runSelectReturningList $ select query
+  where query = filter_ (\pf -> pfPost pf ==. val_ postId) $ all_ $ cPostsFlags cohabrDb
+
 findCommentIdByHabrId :: Connection -> HabrId -> IO (Maybe PKeyId)
 findCommentIdByHabrId conn habrId = runBeamPostgresDebug putStrLn conn $ runSelectReturningOne $ select query
   where query = fmap cId $ filter_ (\comm -> cSourceId comm ==. val_ habrId) $ all_ $ cComments cohabrDb
