@@ -49,7 +49,7 @@ produceUpdateField stored acc parsed | Just val <- acc stored
                                      | otherwise = Just $ UpdateField acc (Just parsed)
 
 calcDiff :: (Eq a, Hashable a) => [a] -> [a] -> ListDiff a
-calcDiff (S.fromList -> stored) (S.fromList -> parsed) = ListDiff { .. }
+calcDiff (S.fromList -> stored) allNew@(S.fromList -> parsed) = ListDiff { .. }
   where
     added = S.toList $ parsed `S.difference` stored
     removed = S.toList $ stored `S.difference` parsed

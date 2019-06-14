@@ -42,6 +42,7 @@ data RawPostVersion = RawPostVersion
 data ListDiff a = ListDiff
   { added :: [a]
   , removed :: [a]
+  , allNew :: [a]
   } deriving (Eq, Ord, Show)
 
 data PostUpdateActions = PostUpdateActions
