@@ -15,10 +15,12 @@ import Data.Time.LocalTime
 import Database.Beam hiding(timestamp)
 import Database.Beam.Postgres
 
+import Cohabr.Diff
 import Cohabr.Db
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Queries
+import Cohabr.Db.Updates
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
@@ -26,7 +28,7 @@ testPost :: HT.Post
 testPost = HT.Post
   { HT.title = "Test post title"
   , HT.body = "First version of the body"
-  , HT.hubs = [ HT.Hub "hubcode" "Hub code" HT.NormalHub
+  , HT.hubs = [ HT.Hub "somehub" "Some hub" HT.NormalHub
               , HT.Hub "initech" "Initech company" HT.CompanyHub
               ]
   , HT.tags = [ HT.Tag "tag1", HT.Tag "tag2" ]
@@ -46,6 +48,19 @@ testPost = HT.Post
 
 testPostId :: HabrId
 testPostId = HabrId 1
+
+testPostNewMeta :: HT.Post
+testPostNewMeta = testPost
+  { HT.hubs = [ HT.Hub "otherhub" "Other hub" HT.NormalHub
+              , HT.Hub "initech" "Initech company" HT.CompanyHub
+              ]
+  , HT.tags = [ HT.Tag "tag1", HT.Tag "tag2", HT.Tag "tag3" ]
+  , HT.postStats = HT.PostStats
+    { HT.votes = HT.Votes 12 22
+    , HT.bookmarks = 7
+    , HT.views = HT.PostViews True 589
+    }
+  }
 
 main :: IO ()
 main = hspec $ do
@@ -112,6 +127,13 @@ main = hspec $ do
       let expectedFlags = sort $ HT.flags testPost
       let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
       storedFlags `shouldBe` expectedFlags
+  describe "Updating post with new metainformation" $ do
+    it "inserts the update as expected" $ do
+      liftIO $ do
+        Just stored <- withConnection $ \conn -> getStoredPostInfo conn $ HabrId 1
+        withConnection $ \conn -> updatePost conn $ postUpdateActions stored testPostNewMeta
+      pure () :: Expectation
+
 withConnection :: (PGS.Connection -> IO c) -> IO c
 withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
