@@ -84,28 +84,29 @@ main = hspec $ do
       withConnection (\conn -> insertPost conn testPostId testPost) `shouldThrow` anyException
     it "inserts again with a different ID" $
       withConnection (\conn -> insertPost conn testPostIdUpdateContents testPost) `shouldNotReturn` PKeyId 1
-  describe "Retrieving just inserted post" $ testStoredPostMatches testPost testPostId
+  describe "Retrieving just inserted post" $
+    testStoredPostMatches testPost testPostId
   describe "Updating post with new metainformation" $ do
     let updated = changePostMeta testPost
     it "inserts the update without errors keeping the version" $ do
-      (oldVerId, newVerId) <- liftIO $ do
-        Just stored <- withConnection $ \conn -> getStoredPostInfo conn testPostId
-        withConnection $ \conn -> updatePost conn $ postUpdateActions stored updated
-        Just (post', _) <- withConnection $ \conn -> findPostByHabrId conn testPostId
-        pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
+      (oldVerId, newVerId) <- liftIO $ doUpdates updated testPostId
       oldVerId `shouldBe` newVerId
-    describe "stored post matches" $ testStoredPostMatches updated testPostId
+    describe "stored post matches" $
+      testStoredPostMatches updated testPostId
   describe "Updating post with new contents" $ do
     let updated = changePostContents testPost
     it "inserts the update changing the version" $ do
-      (oldVerId, newVerId) <- liftIO $ do
-        Just stored <- withConnection $ \conn -> getStoredPostInfo conn testPostIdUpdateContents
-        withConnection $ \conn -> updatePost conn $ postUpdateActions stored updated
-        Just (post', _) <- withConnection $ \conn -> findPostByHabrId conn testPostIdUpdateContents
-        pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
+      (oldVerId, newVerId) <- liftIO $ doUpdates updated testPostIdUpdateContents
       oldVerId `shouldNotBe` newVerId
-    describe "stored post matches" $ testStoredPostMatches updated testPostIdUpdateContents
+    describe "stored post matches" $
+      testStoredPostMatches updated testPostIdUpdateContents
   where
+    doUpdates updated habrId = do
+        Just stored <- withConnection $ \conn -> getStoredPostInfo conn habrId
+        withConnection $ \conn -> updatePost conn $ postUpdateActions stored updated
+        Just (post', _) <- withConnection $ \conn -> findPostByHabrId conn habrId
+        pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
+
     testStoredPostMatches post habrId = do
       it "finds just inserted post" $ do
         maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn habrId
