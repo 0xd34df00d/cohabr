@@ -6,11 +6,13 @@ module Cohabr.Db.Utils
 ( expectSingleResult
 , runInsertReturningOne
 , runUpdateReturningOne
-, ensureHubsExist
-, makeHubId
-, fromStoredHub
 , conflictIgnore
 
+, ensureHubsExist
+, makeHubId
+
+, fromStoredHub
+, fromStoredTag
 , flagToStr
 , strToFlag
 ) where
@@ -64,6 +66,9 @@ fromStoredHub (PostHub { .. }, Hub { .. }) = HT.Hub code hName kind
     (code, kind) | not $ cmpPref `T.isPrefixOf` hId = (hId, HT.NormalHub)
                  | otherwise = (T.drop (T.length cmpPref) hId, HT.CompanyHub)
     cmpPref = "company-"
+
+fromStoredTag :: PostTag -> HT.Tag
+fromStoredTag = HT.Tag . ptTag
 
 conflictIgnore :: Beamable tbl => PgInsertOnConflict tbl
 conflictIgnore = onConflict anyConflict onConflictDoNothing

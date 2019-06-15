@@ -137,7 +137,7 @@ main = hspec $ do
         vid <- pvId . snd . fromJust <$> findPostByHabrId conn testPostId
         getPostVersionTags conn vid
       let expectedTags = sort $ HT.tags testPost
-      let storedTags = sort $ HT.Tag . ptTag <$> tags
+      let storedTags = sort $ fromStoredTag <$> tags
       storedTags `shouldBe` expectedTags
     it "produces the same flags" $ do
       flags <- liftIO $ withConnection $ \conn -> do
