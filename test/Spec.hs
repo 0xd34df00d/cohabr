@@ -77,62 +77,64 @@ main = hspec $ do
       withConnection (\conn -> insertPost conn testPostId testPost) `shouldThrow` anyException
     it "inserts again with a different ID" $
       withConnection (\conn -> insertPost conn (HabrId 2) testPost) `shouldNotReturn` PKeyId 1
-  describe "Retrieving just inserted post" $ do
-    it "finds just inserted post" $ do
-      maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn $ HabrId 1
-      isJust maybeSavedPost `shouldBe` True
-    it "saved post contents match" $ do
-      Just (Post { .. }, PostVersion { .. }) <- liftIO $
-          withConnection $ \conn -> findPostByHabrId conn $ HabrId 1
-
-      let HT.Post { postStats = HT.PostStats { .. }, .. } = testPost
-
-      -- TODO time-1.9: compare local times directly
-      now <- liftIO $ localTimeToUTC utc . zonedTimeToLocalTime <$> getZonedTime
-      diffUTCTime now (localTimeToUTC utc pvAdded) `shouldSatisfy` (< 5 {- seconds -})
-
-      pSourceId `shouldBe` testPostId
-      pPublished `shouldBe` timestamp
-      pUser `shouldBe` Just (HT.username user)
-      pLink `shouldBe` HT.linkUrl <$> link
-      pLinkName `shouldBe` HT.linkName <$> link
-      pScorePlus `shouldBe` Just (HT.pos votes)
-      pScoreMinus `shouldBe` Just (HT.neg votes)
-      pOrigViews `shouldBe` Just (HT.viewsCount views)
-      pOrigViewsNearly `shouldBe` Just (not $ HT.isExactCount views)
-
-      pCurrentVersion `shouldBe` pvId
-      pvPostId `shouldBe` pId
-
-      pvTitle `shouldBe` Just title
-      pvContent `shouldBe` body
-    it "produces the same hubs" $ do
-      hubs <- liftIO $ withConnection $ \conn -> do
-        vid <- pvId . snd . fromJust <$> findPostByHabrId conn testPostId
-        getPostVersionHubs conn vid
-      let expectedHubs = sort $ HT.hubs testPost
-      let storedHubs = sort $ fromStoredHub <$> hubs
-      storedHubs `shouldBe` expectedHubs
-    it "produces the same tags" $ do
-      tags <- liftIO $ withConnection $ \conn -> do
-        vid <- pvId . snd . fromJust <$> findPostByHabrId conn testPostId
-        getPostVersionTags conn vid
-      let expectedTags = sort $ HT.tags testPost
-      let storedTags = sort $ fromStoredTag <$> tags
-      storedTags `shouldBe` expectedTags
-    it "produces the same flags" $ do
-      flags <- liftIO $ withConnection $ \conn -> do
-        pid <- pId . fst . fromJust <$> findPostByHabrId conn testPostId
-        getPostFlags conn pid
-      let expectedFlags = sort $ HT.flags testPost
-      let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
-      storedFlags `shouldBe` expectedFlags
+  describe "Retrieving just inserted post" $ testStoredPostMatches testPost $ HabrId 1
   describe "Updating post with new metainformation" $ do
     it "inserts the update as expected" $ do
       liftIO $ do
         Just stored <- withConnection $ \conn -> getStoredPostInfo conn $ HabrId 1
         withConnection $ \conn -> updatePost conn $ postUpdateActions stored testPostNewMeta
       pure () :: Expectation
+  where
+    testStoredPostMatches post postId = do
+      it "finds just inserted post" $ do
+        maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn $ HabrId 1
+        isJust maybeSavedPost `shouldBe` True
+      it "saved post contents match" $ do
+        Just (Post { .. }, PostVersion { .. }) <- liftIO $
+            withConnection $ \conn -> findPostByHabrId conn postId
+
+        let HT.Post { postStats = HT.PostStats { .. }, .. } = post
+
+        -- TODO time-1.9: compare local times directly
+        now <- liftIO $ localTimeToUTC utc . zonedTimeToLocalTime <$> getZonedTime
+        diffUTCTime now (localTimeToUTC utc pvAdded) `shouldSatisfy` (< 5 {- seconds -})
+
+        pSourceId `shouldBe` postId
+        pPublished `shouldBe` timestamp
+        pUser `shouldBe` Just (HT.username user)
+        pLink `shouldBe` HT.linkUrl <$> link
+        pLinkName `shouldBe` HT.linkName <$> link
+        pScorePlus `shouldBe` Just (HT.pos votes)
+        pScoreMinus `shouldBe` Just (HT.neg votes)
+        pOrigViews `shouldBe` Just (HT.viewsCount views)
+        pOrigViewsNearly `shouldBe` Just (not $ HT.isExactCount views)
+
+        pCurrentVersion `shouldBe` pvId
+        pvPostId `shouldBe` pId
+
+        pvTitle `shouldBe` Just title
+        pvContent `shouldBe` body
+      it "produces the same hubs" $ do
+        hubs <- liftIO $ withConnection $ \conn -> do
+          vid <- pvId . snd . fromJust <$> findPostByHabrId conn postId
+          getPostVersionHubs conn vid
+        let expectedHubs = sort $ HT.hubs post
+        let storedHubs = sort $ fromStoredHub <$> hubs
+        storedHubs `shouldBe` expectedHubs
+      it "produces the same tags" $ do
+        tags <- liftIO $ withConnection $ \conn -> do
+          vid <- pvId . snd . fromJust <$> findPostByHabrId conn postId
+          getPostVersionTags conn vid
+        let expectedTags = sort $ HT.tags post
+        let storedTags = sort $ fromStoredTag <$> tags
+        storedTags `shouldBe` expectedTags
+      it "produces the same flags" $ do
+        flags <- liftIO $ withConnection $ \conn -> do
+          pid <- pId . fst . fromJust <$> findPostByHabrId conn postId
+          getPostFlags conn pid
+        let expectedFlags = sort $ HT.flags post
+        let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
+        storedFlags `shouldBe` expectedFlags
 
 withConnection :: (PGS.Connection -> IO c) -> IO c
 withConnection = bracket
