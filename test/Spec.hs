@@ -22,42 +22,6 @@ import Cohabr.Db.Queries
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
-withConnection :: (PGS.Connection -> IO c) -> IO c
-withConnection = bracket
-  (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
-  PGS.close
-
-clearTables :: IO ()
-clearTables = void $ withConnection $ \conn ->
-  mapM_ (\table -> PGS.execute_ conn $ "TRUNCATE TABLE " <> table <> " RESTART IDENTITY CASCADE")
-    [ "comments"
-    , "flags"
-    , "hubs"
-    , "post_aliases"
-    , "posts"
-    , "posts_flags"
-    , "posts_hubs"
-    , "posts_tags"
-    , "posts_versions"
-    , "saved_images"
-    , "user_avatars"
-    , "users"
-    ]
-
-prepopulateHubs :: IO ()
-prepopulateHubs = void $ withConnection $ \conn ->
-  runBeamPostgres conn $ runInsert $ insert (cHubs cohabrDb) $ insertValues
-    [ Hub { hId = makeHubId hub, hName = HT.hubName hub }
-    | hub <- HT.hubs testPost
-    ]
-
-prepopulateFlags :: IO ()
-prepopulateFlags = void $ withConnection $ \conn ->
-  runBeamPostgres conn $ runInsert $ insert (cFlags cohabrDb) $ insertValues
-    [ Flag { fTooltip = mempty, fText = mempty, fId = flagToStr flag }
-    | flag <- [minBound .. maxBound]
-    ]
-
 testPost :: HT.Post
 testPost = HT.Post
   { HT.title = "Test post title"
@@ -146,3 +110,38 @@ main = hspec $ do
       let expectedFlags = sort $ HT.flags testPost
       let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
       storedFlags `shouldBe` expectedFlags
+withConnection :: (PGS.Connection -> IO c) -> IO c
+withConnection = bracket
+  (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
+  PGS.close
+
+clearTables :: IO ()
+clearTables = void $ withConnection $ \conn ->
+  mapM_ (\table -> PGS.execute_ conn $ "TRUNCATE TABLE " <> table <> " RESTART IDENTITY CASCADE")
+    [ "comments"
+    , "flags"
+    , "hubs"
+    , "post_aliases"
+    , "posts"
+    , "posts_flags"
+    , "posts_hubs"
+    , "posts_tags"
+    , "posts_versions"
+    , "saved_images"
+    , "user_avatars"
+    , "users"
+    ]
+
+prepopulateHubs :: IO ()
+prepopulateHubs = void $ withConnection $ \conn ->
+  runBeamPostgres conn $ runInsert $ insert (cHubs cohabrDb) $ insertValues
+    [ Hub { hId = makeHubId hub, hName = HT.hubName hub }
+    | hub <- HT.hubs testPost
+    ]
+
+prepopulateFlags :: IO ()
+prepopulateFlags = void $ withConnection $ \conn ->
+  runBeamPostgres conn $ runInsert $ insert (cFlags cohabrDb) $ insertValues
+    [ Flag { fTooltip = mempty, fText = mempty, fId = flagToStr flag }
+    | flag <- [minBound .. maxBound]
+    ]
