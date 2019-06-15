@@ -93,6 +93,13 @@ main = hspec $ do
       oldVerId `shouldBe` newVerId
     describe "stored post matches" $
       testStoredPostMatches updated testPostId
+    describe "and then updating it with new contents" $ do
+      let updated' = changePostContents updated
+      it "inserts the update without errors changing the version" $ do
+        (oldVerId, newVerId) <- liftIO $ doUpdates updated' testPostId
+        oldVerId `shouldNotBe` newVerId
+      describe "stored post matches" $
+        testStoredPostMatches updated' testPostId
   describe "Updating post with new contents" $ do
     let updated = changePostContents testPost
     it "inserts the update changing the version" $ do
@@ -100,6 +107,13 @@ main = hspec $ do
       oldVerId `shouldNotBe` newVerId
     describe "stored post matches" $
       testStoredPostMatches updated testPostIdUpdateContents
+    describe "and then updating it with new meta" $ do
+      let updated' = changePostMeta updated
+      it "inserts the update without errors keeping the version" $ do
+        (oldVerId, newVerId) <- liftIO $ doUpdates updated' testPostIdUpdateContents
+        oldVerId `shouldBe` newVerId
+      describe "stored post matches" $
+        testStoredPostMatches updated' testPostIdUpdateContents
   where
     doUpdates updated habrId = do
         Just stored <- withConnection $ \conn -> getStoredPostInfo conn habrId
