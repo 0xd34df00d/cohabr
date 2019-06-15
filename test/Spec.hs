@@ -89,7 +89,7 @@ main = hspec $ do
   where
     testStoredPostMatches post postId = do
       it "finds just inserted post" $ do
-        maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn $ HabrId 1
+        maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn postId
         isJust maybeSavedPost `shouldBe` True
       it "saved post contents match" $ do
         Just (Post { .. }, PostVersion { .. }) <- liftIO $
