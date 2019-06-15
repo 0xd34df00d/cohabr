@@ -60,6 +60,8 @@ main = hspec $ do
       withConnection (\conn -> insertPost conn testPostId testPost) `shouldReturn` PKeyId 1
     it "fails due to dup key when inserting again" $
       withConnection (\conn -> insertPost conn testPostId testPost) `shouldThrow` anyException
+    it "inserts again with a different ID" $
+      withConnection (\conn -> insertPost conn (HabrId 2) testPost) `shouldNotReturn` PKeyId 1
   describe "Retrieving just inserted post" $ do
     it "finds just inserted post" $ do
       maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn $ HabrId 1
