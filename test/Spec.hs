@@ -87,13 +87,13 @@ main = hspec $ do
       pure () :: Expectation
     describe "stored post matches" $ testStoredPostMatches updated $ HabrId 1
   where
-    testStoredPostMatches post postId = do
+    testStoredPostMatches post habrId = do
       it "finds just inserted post" $ do
-        maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn postId
+        maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn habrId
         isJust maybeSavedPost `shouldBe` True
       it "saved post contents match" $ do
         Just (Post { .. }, PostVersion { .. }) <- liftIO $
-            withConnection $ \conn -> findPostByHabrId conn postId
+            withConnection $ \conn -> findPostByHabrId conn habrId
 
         let HT.Post { postStats = HT.PostStats { .. }, .. } = post
 
@@ -101,7 +101,7 @@ main = hspec $ do
         now <- liftIO $ localTimeToUTC utc . zonedTimeToLocalTime <$> getZonedTime
         diffUTCTime now (localTimeToUTC utc pvAdded) `shouldSatisfy` (< 5 {- seconds -})
 
-        pSourceId `shouldBe` postId
+        pSourceId `shouldBe` habrId
         pPublished `shouldBe` timestamp
         pUser `shouldBe` Just (HT.username user)
         pLink `shouldBe` HT.linkUrl <$> link
@@ -118,21 +118,21 @@ main = hspec $ do
         pvContent `shouldBe` body
       it "produces the same hubs" $ do
         hubs <- liftIO $ withConnection $ \conn -> do
-          vid <- pvId . snd . fromJust <$> findPostByHabrId conn postId
+          vid <- pvId . snd . fromJust <$> findPostByHabrId conn habrId
           getPostVersionHubs conn vid
         let expectedHubs = sort $ HT.hubs post
         let storedHubs = sort $ fromStoredHub <$> hubs
         storedHubs `shouldBe` expectedHubs
       it "produces the same tags" $ do
         tags <- liftIO $ withConnection $ \conn -> do
-          vid <- pvId . snd . fromJust <$> findPostByHabrId conn postId
+          vid <- pvId . snd . fromJust <$> findPostByHabrId conn habrId
           getPostVersionTags conn vid
         let expectedTags = sort $ HT.tags post
         let storedTags = sort $ fromStoredTag <$> tags
         storedTags `shouldBe` expectedTags
       it "produces the same flags" $ do
         flags <- liftIO $ withConnection $ \conn -> do
-          pid <- pId . fst . fromJust <$> findPostByHabrId conn postId
+          pid <- pId . fst . fromJust <$> findPostByHabrId conn habrId
           getPostFlags conn pid
         let expectedFlags = sort $ HT.flags post
         let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
