@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Habr.Diff where
+module Cohabr.Diff where
 
 import qualified Data.HashSet as S
 import Data.Hashable
