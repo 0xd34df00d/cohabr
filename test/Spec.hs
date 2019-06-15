@@ -49,8 +49,8 @@ testPost = HT.Post
 testPostId :: HabrId
 testPostId = HabrId 1
 
-testPostNewMeta :: HT.Post
-testPostNewMeta = testPost
+changePostMeta :: HT.Post -> HT.Post
+changePostMeta post = post
   { HT.hubs = [ HT.Hub "otherhub" "Other hub" HT.NormalHub
               , HT.Hub "initech" "Initech company" HT.CompanyHub
               ]
@@ -79,11 +79,13 @@ main = hspec $ do
       withConnection (\conn -> insertPost conn (HabrId 2) testPost) `shouldNotReturn` PKeyId 1
   describe "Retrieving just inserted post" $ testStoredPostMatches testPost $ HabrId 1
   describe "Updating post with new metainformation" $ do
-    it "inserts the update as expected" $ do
+    let updated = changePostMeta testPost
+    it "inserts the update without errors" $ do
       liftIO $ do
         Just stored <- withConnection $ \conn -> getStoredPostInfo conn $ HabrId 1
-        withConnection $ \conn -> updatePost conn $ postUpdateActions stored testPostNewMeta
+        withConnection $ \conn -> updatePost conn $ postUpdateActions stored updated
       pure () :: Expectation
+    describe "stored post matches" $ testStoredPostMatches updated $ HabrId 1
   where
     testStoredPostMatches post postId = do
       it "finds just inserted post" $ do
