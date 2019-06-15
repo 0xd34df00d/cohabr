@@ -77,7 +77,7 @@ main = hspec $ do
       withConnection (\conn -> insertPost conn testPostId testPost) `shouldThrow` anyException
     it "inserts again with a different ID" $
       withConnection (\conn -> insertPost conn (HabrId 2) testPost) `shouldNotReturn` PKeyId 1
-  describe "Retrieving just inserted post" $ testStoredPostMatches testPost $ HabrId 1
+  describe "Retrieving just inserted post" $ testStoredPostMatches testPost testPostId
   describe "Updating post with new metainformation" $ do
     let updated = changePostMeta testPost
     it "inserts the update without errors" $ do
