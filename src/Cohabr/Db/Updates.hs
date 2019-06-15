@@ -96,11 +96,11 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
   unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
   where
     remove [] = pure 0
-    remove hubs = expectSingleResult =<< runPgDeleteReturningList
+    remove hubs = length <$> runPgDeleteReturningList
                     (deleteReturning
                       (cPostsHubs cohabrDb)
                       (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
-                      (const countAll_))
+                      (phPostVersion))      -- TODO if we can count better
 
 updateVersionTags :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Tag -> m ()
 updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionTags postVersionId allNew
@@ -110,8 +110,8 @@ updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
   unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
   where
     remove [] = pure 0
-    remove tags = expectSingleResult =<< runPgDeleteReturningList
+    remove tags = length <$> runPgDeleteReturningList
                     (deleteReturning
                       (cPostsTags cohabrDb)
                       (\h -> ptTag h `in_` (val_ . HT.name <$> tags) &&. ptPostVersion h ==. val_ postVersionId)
-                      (const countAll_))
+                      (ptId))
