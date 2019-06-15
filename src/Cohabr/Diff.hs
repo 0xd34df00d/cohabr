@@ -37,9 +37,10 @@ getStoredPostInfo conn habrId = do
       storedPostTags <- fmap fromStoredTag <$> getPostVersionTags conn postVerId
       pure $ Just StoredPostInfo { .. }
 
-postUpdateActions :: PKeyId -> StoredPostInfo -> HT.Post -> PostUpdateActions
-postUpdateActions postId StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. }
+postUpdateActions :: StoredPostInfo -> HT.Post -> PostUpdateActions
+postUpdateActions StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. }
   where
+    postId = pId storedPost
     hubsDiff = calcDiff storedPostHubs hubs
     tagsDiff = calcDiff storedPostTags tags
 
