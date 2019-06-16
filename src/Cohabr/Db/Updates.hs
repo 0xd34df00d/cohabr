@@ -56,7 +56,7 @@ data PostUpdateActions = PostUpdateActions
 updatePost :: SqlMonad m => PostUpdateActions -> m ()
 updatePost PostUpdateActions { .. } = do
   SqlEnv { .. } <- ask
-  liftIO $ ensureHubsExist conn $ added hubsDiff
+  ensureHubsExist $ added hubsDiff
   withTransaction' $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
     let isNewVersion = isJust maybeNewVersionId
