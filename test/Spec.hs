@@ -46,9 +46,10 @@ testPost = HT.Post
     }
   }
 
-testPostId, testPostIdUpdateContents :: HabrId
+testPostId, testPostIdUpdateContents, testPostIdUpdateBoth :: HabrId
 testPostId = HabrId 1
 testPostIdUpdateContents = HabrId 2
+testPostIdUpdateBoth = HabrId 3
 
 changePostMeta :: HT.Post -> HT.Post
 changePostMeta post = post
@@ -82,8 +83,9 @@ main = hspec $ do
       runSqlMonad (insertPost testPostId testPost) `shouldReturn` PKeyId 1
     it "fails due to dup key when inserting again" $
       runSqlMonad (insertPost testPostId testPost) `shouldThrow` anyException
-    it "inserts again with a different ID" $
+    it "inserts again with a different ID" $ do
       runSqlMonad (insertPost testPostIdUpdateContents testPost) `shouldNotReturn` PKeyId 1
+      runSqlMonad (insertPost testPostIdUpdateBoth testPost) `shouldNotReturn` PKeyId 1
   describe "Retrieving just inserted post" $
     testStoredPostMatches testPost testPostId
   describe "Updating post with new metainformation" $ do
@@ -114,6 +116,13 @@ main = hspec $ do
         oldVerId `shouldBe` newVerId
       describe "stored post matches" $
         testStoredPostMatches updated' testPostIdUpdateContents
+  describe "Updating post with both new meta and contents" $ do
+    let updated = changePostContents $ changePostMeta testPost
+    it "inserts the update without errors updating the version" $ do
+      (oldVerId, newVerId) <- liftIO $ doUpdates updated testPostIdUpdateBoth
+      oldVerId `shouldNotBe` newVerId
+    describe "stored post matches" $
+      testStoredPostMatches updated testPostId
   where
     doUpdates updated habrId = do
         Just stored <- withConnection $ \conn -> getStoredPostInfo conn habrId
