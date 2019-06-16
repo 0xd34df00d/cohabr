@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, QuasiQuotes #-}
 {-# LANGUAGE RankNTypes, FlexibleContexts #-}
 
 module Cohabr.Db.Inserts
@@ -10,8 +10,8 @@ module Cohabr.Db.Inserts
 
 import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as PGS
-import Control.Monad
 import Data.Maybe
+import Data.String.Interpolate
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -36,7 +36,8 @@ insertPost conn habrId post@HT.Post { .. } = do
                 (cPostsVersions cohabrDb)
                 (\pv -> pvPostId pv <-. val_ postId)
                 (\pv -> pvId pv ==. val_ versionId)
-    unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+    length updates == 1 ||^
+      [i|#{length updates} rows affected by update for post #{habrId}, postId #{postId}, version #{versionId}|]
 
     insertVersionHubs versionId hubs
     insertVersionTags versionId tags
@@ -89,7 +90,7 @@ ensureUserExists conn HT.UserInfo { .. } = runBeamPostgresDebug putStrLn conn $ 
                         (cUsers cohabrDb)
                         (\u -> uCurrentAvatar u <-. val_ (Just avatarId))
                         (\u -> uId u ==. val_ newUid)
-          unless (length updates == 1) $ error "Expected one row to be affected by update" -- TODO error handling
+          length updates == 1 ||^ [i|#{length updates} rows affected by avatar update for user #{newUid}|]
       pure newUid
   where
     query = fmap uId $ filter_ (\u -> uUsername u ==. val_ username) $ all_ $ cUsers cohabrDb
@@ -131,7 +132,8 @@ insertComment conn postId comment = do
     0 -> pure Nothing
     cid -> do
       found <- findCommentIdByHabrId conn $ HabrId cid
-      guard $ isJust found             -- TODO error handling
+      isJust found ||^
+        [i|Parent comment not found for post #{postId}, comment #{HT.commentId comment} parent comment #{cid}|]
       pure found
   userId <- case HT.contents comment of
     HT.CommentDeleted -> pure Nothing
