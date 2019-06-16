@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -20,12 +20,18 @@ module Cohabr.Db.Utils
 , SqlInvariantException
 , throwSql
 , (||^)
+
+, SqlEnv(..)
+, SqlMonad
+, withTransaction'
 ) where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
 import Control.Monad
+import Control.Monad.Reader
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -106,7 +112,16 @@ data SqlInvariantException = SqlInvariantException
 throwSql :: HasCallStack => String -> a
 throwSql = throw . SqlInvariantException callStack
 
+infix 1 ||^
 (||^) :: (Applicative f, HasCallStack) => Bool -> String -> f ()
 (||^) cond str = unless cond $ throwSql str
 
-infix 1 ||^
+data SqlEnv = SqlEnv
+  { conn :: Connection
+  , stmtLogger :: String -> IO ()
+  }
+
+type SqlMonad m = (MonadReader SqlEnv m, MonadIO m)
+
+withTransaction' :: SqlMonad m => IO a -> m a
+withTransaction' act = reader conn >>= \conn' -> liftIO $ PGS.withTransaction conn' act
