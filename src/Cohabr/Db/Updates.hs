@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, QuasiQuotes #-}
 {-# LANGUAGE RankNTypes, FlexibleContexts, GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import Control.Monad
 import Control.Monad.Reader
 import Data.Maybe
+import Data.String.Interpolate
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL
 import Database.Beam.Backend.SQL.BeamExtensions
@@ -94,7 +95,8 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                                                              | otherwise = do
   insertVersionHubs postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
+  unless (remCnt == length removed) $ reader stmtLogger >>=
+      \logger -> liftIO $ logger LogWarn [i|Unexpected removed hubs count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
     remove hubs = length <$> runPgDeleteReturningList
@@ -108,7 +110,8 @@ updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                                                              | otherwise = do
   insertVersionTags postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ error "Unexpected removed items count" -- TODO
+  unless (remCnt == length removed) $ reader stmtLogger >>=
+      \logger -> liftIO $ logger LogWarn [i|Unexpected removed tags count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
     remove tags = length <$> runPgDeleteReturningList
