@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, RankNTypes #-}
 {-# LANGUAGE QuasiQuotes, ScopedTypeVariables #-}
 
 module Main where
@@ -8,7 +8,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Data.String.Interpolate
 import Data.Time.LocalTime
-import Database.Beam
 import Network.HTTP.Conduit
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument)
@@ -18,8 +17,12 @@ import System.IO
 import Database.PostgreSQL.Util
 import Cohabr.Db.Queries
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.Utils
 import Habr.Parser
 import Habr.RSS
+
+runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
+runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = const putStrLn }
 
 refetchPost :: HabrId -> IO ()
 refetchPost postId = do
@@ -30,7 +33,7 @@ refetchPost postId = do
   case parseResult of
     Left errs -> hPutStr stderr $ unlines errs
     Right (post, comments) -> do
-      maybeOurVersion <- withConnection $ \conn -> findPostByHabrId conn postId
+      maybeOurVersion <- runSqlMonad $ findPostByHabrId postId
       case maybeOurVersion of
         Nothing -> putStrLn "new post!"
         Just (ourPost, ourVersion) -> putStrLn "found post!"
@@ -42,7 +45,7 @@ pollRSS = do
   case maybeIds of
     Nothing -> undefined
     Just ids -> do
-      recs <- withConnection $ \conn -> selectMissingPosts conn $ HabrId <$> ids
+      recs <- runSqlMonad $ selectMissingPosts $ HabrId <$> ids
       mapM_ refetchPost [head recs]
 
 main :: IO ()
