@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Cohabr.Db.Utils
 ( expectSingleResult
@@ -15,10 +16,14 @@ module Cohabr.Db.Utils
 , fromStoredTag
 , flagToStr
 , strToFlag
+
+, SqlInvariantException
+, throwSql
 ) where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import Control.Exception
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -90,3 +95,11 @@ strToFlagMap :: HM.HashMap T.Text HT.Flag
 strToFlagMap = HM.fromList [ (flagToStr flag, flag)
                            | flag <- [minBound .. maxBound]
                            ]
+
+data SqlInvariantException = SqlInvariantException
+  { stack :: CallStack
+  , description :: String
+  } deriving (Show, Typeable, Exception)
+
+throwSql :: HasCallStack => String -> a
+throwSql = throw . SqlInvariantException callStack
