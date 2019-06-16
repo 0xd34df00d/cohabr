@@ -36,7 +36,7 @@ import qualified Habr.Types as HT
 
 expectSingleResult :: (HasCallStack, Monad m) => [a] -> m a
 expectSingleResult [e] = pure e
-expectSingleResult _ = error $ "Expected single ID at:\n" <> prettyCallStack callStack -- TODO error handling
+expectSingleResult lst = throwSql $ "Expected single result, got " <> show (length lst) <> "instead"
 
 runInsertReturningOne :: (HasCallStack,
                           MonadBeamInsertReturning be m,
