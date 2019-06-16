@@ -9,7 +9,6 @@ module Cohabr.Db.Inserts
 ) where
 
 import qualified Data.Text as T
-import Control.Monad.Reader
 import Data.Maybe
 import Data.String.Interpolate
 import Database.Beam hiding(timestamp)
@@ -75,26 +74,24 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
 
 ensureUserExists :: SqlMonad m => HT.UserInfo -> m PKeyId
-ensureUserExists HT.UserInfo { .. } = do
-  SqlEnv { .. } <- ask
-  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ do
-    maybeId <- runSelectReturningOne $ select query
-    case maybeId of
-      Just userId -> pure userId
-      Nothing -> do
-        newUid <- fmap uId $ runInsertReturningOne $
-                    insert (cUsers cohabrDb) $ insertExpressions [makeUserRecord username]
-        case avatar of
-          HT.DefaultAvatar {} -> pure ()
-          HT.CustomAvatar { .. } -> do
-            avatarId <- fmap uaId $ runInsertReturningOne $
-                          insert (cUserAvatars cohabrDb) $ insertExpressions [makeAvatarRecord newUid avatarLink]
-            updates <- runUpdateReturningList $ update
-                          (cUsers cohabrDb)
-                          (\u -> uCurrentAvatar u <-. val_ (Just avatarId))
-                          (\u -> uId u ==. val_ newUid)
-            length updates == 1 ||^ [i|#{length updates} rows affected by avatar update for user #{newUid}|]
-        pure newUid
+ensureUserExists HT.UserInfo { .. } = runPg $ do
+  maybeId <- runSelectReturningOne $ select query
+  case maybeId of
+    Just userId -> pure userId
+    Nothing -> do
+      newUid <- fmap uId $ runInsertReturningOne $
+                  insert (cUsers cohabrDb) $ insertExpressions [makeUserRecord username]
+      case avatar of
+        HT.DefaultAvatar {} -> pure ()
+        HT.CustomAvatar { .. } -> do
+          avatarId <- fmap uaId $ runInsertReturningOne $
+                        insert (cUserAvatars cohabrDb) $ insertExpressions [makeAvatarRecord newUid avatarLink]
+          updates <- runUpdateReturningList $ update
+                        (cUsers cohabrDb)
+                        (\u -> uCurrentAvatar u <-. val_ (Just avatarId))
+                        (\u -> uId u ==. val_ newUid)
+          length updates == 1 ||^ [i|#{length updates} rows affected by avatar update for user #{newUid}|]
+      pure newUid
   where
     query = fmap uId $ filter_ (\u -> uUsername u ==. val_ username) $ all_ $ cUsers cohabrDb
 
@@ -131,7 +128,6 @@ makeAvatarRecord userId link = UserAvatar
 
 insertComment :: SqlMonad m => PKeyId -> HT.Comment -> m PKeyId
 insertComment postId comment = do
-  SqlEnv { .. } <- ask
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
     cid -> do
@@ -143,7 +139,7 @@ insertComment postId comment = do
     HT.CommentDeleted -> pure Nothing
     HT.CommentExisting { .. } -> Just <$> ensureUserExists user
   let rec = makeCommentRecord postId parentCommentId userId comment
-  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ fmap cId $ runInsertReturningOne $
+  runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)

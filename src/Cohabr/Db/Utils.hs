@@ -65,9 +65,7 @@ runUpdateReturningOne :: (HasCallStack,
 runUpdateReturningOne f = runUpdateReturningList f >>= expectSingleResult
 
 ensureHubsExist :: SqlMonad m => [HT.Hub] -> m ()
-ensureHubsExist hubs = do
-  SqlEnv { .. } <- ask
-  liftIO $ runBeamPostgres conn $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
+ensureHubsExist hubs = runPg $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
   where
     query = insertValues $ (\h -> Hub { hId = makeHubId h, hName = HT.hubName h }) <$> hubs
 
