@@ -25,6 +25,7 @@ module Cohabr.Db.Utils
 , LogMessageContext(..)
 , SqlMonad
 , withTransactionPg
+, runPg
 ) where
 
 import qualified Data.HashMap.Strict as HM
@@ -133,3 +134,8 @@ withTransactionPg :: SqlMonad m => Pg a -> m a
 withTransactionPg pg = do
   SqlEnv { .. } <- ask
   liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
+
+runPg :: SqlMonad m => Pg a -> m a
+runPg pg = do
+  SqlEnv { .. } <- ask
+  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
