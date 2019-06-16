@@ -27,8 +27,7 @@ import qualified Habr.Types as HT
 insertPost :: SqlMonad m => HabrId -> HT.Post -> m PKeyId
 insertPost habrId post@HT.Post { .. } = do
   userId <- ensureUserExists user
-  SqlEnv { .. } <- ask
-  withTransaction' $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ do
+  withTransactionPg $ do
     versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
                     insertExpressions [makePostVersionRecord post]
     postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
