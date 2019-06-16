@@ -12,8 +12,8 @@ module Cohabr.Db.Updates
 ) where
 
 import qualified Data.Text as T
-import qualified Database.PostgreSQL.Simple as PGS
 import Control.Monad
+import Control.Monad.Reader
 import Data.Maybe
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL
@@ -53,10 +53,11 @@ data PostUpdateActions = PostUpdateActions
   , newPostVersion :: Maybe RawPostVersion
   }
 
-updatePost :: Connection -> PostUpdateActions -> IO ()
-updatePost conn PostUpdateActions { .. } = do
-  ensureHubsExist conn $ added hubsDiff
-  PGS.withTransaction conn $ runBeamPostgresDebug putStrLn conn $ do
+updatePost :: SqlMonad m => PostUpdateActions -> m ()
+updatePost PostUpdateActions { .. } = do
+  SqlEnv { .. } <- ask
+  liftIO $ ensureHubsExist conn $ added hubsDiff
+  withTransaction' $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
     let isNewVersion = isJust maybeNewVersionId
     let postUpdates' = postUpdates <> catMaybes [

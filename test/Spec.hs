@@ -126,7 +126,7 @@ main = hspec $ do
   where
     doUpdates updated habrId = do
         Just stored <- withConnection $ \conn -> getStoredPostInfo conn habrId
-        withConnection $ \conn -> updatePost conn $ postUpdateActions stored updated
+        runSqlMonad $ updatePost $ postUpdateActions stored updated
         Just (post', _) <- withConnection $ \conn -> findPostByHabrId conn habrId
         pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
 
