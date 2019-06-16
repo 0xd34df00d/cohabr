@@ -13,6 +13,7 @@ module Cohabr.Db.Updates
 
 import qualified Data.Text as T
 import Control.Monad
+import Control.Monad.Reader
 import Data.Maybe
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL
@@ -55,7 +56,8 @@ data PostUpdateActions = PostUpdateActions
 updatePost :: SqlMonad m => PostUpdateActions -> m ()
 updatePost PostUpdateActions { .. } = do
   ensureHubsExist $ added hubsDiff
-  withTransactionPg $ do
+  env <- ask
+  withTransactionPg $ flip runReaderT env $ do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
     let isNewVersion = isJust maybeNewVersionId
     let postUpdates' = postUpdates <> catMaybes [
@@ -87,7 +89,7 @@ updatePostVersion postId (Just RawPostVersion { .. }) =
       , pvContent = val_ rawPVText
       }
 
-updateVersionHubs :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Hub -> m ()
+updateVersionHubs :: (SqlMonad m, MonadBeam Postgres m) => PKeyId -> Bool -> ListDiff HT.Hub -> m ()
 updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionHubs postVersionId allNew
                                                              | otherwise = do
   insertVersionHubs postVersionId added
@@ -101,7 +103,7 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                       (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
                       (phPostVersion))      -- TODO if we can count better
 
-updateVersionTags :: MonadBeam Postgres m => PKeyId -> Bool -> ListDiff HT.Tag -> m ()
+updateVersionTags :: (SqlMonad m, MonadBeam Postgres m) => PKeyId -> Bool -> ListDiff HT.Tag -> m ()
 updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionTags postVersionId allNew
                                                              | otherwise = do
   insertVersionTags postVersionId added
