@@ -19,11 +19,13 @@ module Cohabr.Db.Utils
 
 , SqlInvariantException
 , throwSql
+, (||^)
 ) where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Control.Exception
+import Control.Monad
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -103,3 +105,8 @@ data SqlInvariantException = SqlInvariantException
 
 throwSql :: HasCallStack => String -> a
 throwSql = throw . SqlInvariantException callStack
+
+(||^) :: (Applicative f, HasCallStack) => Bool -> String -> f ()
+(||^) cond str = unless cond $ throwSql str
+
+infix 1 ||^
