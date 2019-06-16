@@ -28,7 +28,7 @@ insertPost :: SqlMonad m => HabrId -> HT.Post -> m PKeyId
 insertPost habrId post@HT.Post { .. } = do
   userId <- ensureUserExists user
   SqlEnv { .. } <- ask
-  withTransaction' $ runBeamPostgresDebug stmtLogger conn $ do
+  withTransaction' $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ do
     versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
                     insertExpressions [makePostVersionRecord post]
     postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
@@ -77,7 +77,7 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
 ensureUserExists :: SqlMonad m => HT.UserInfo -> m PKeyId
 ensureUserExists HT.UserInfo { .. } = do
   SqlEnv { .. } <- ask
-  liftIO $ runBeamPostgresDebug stmtLogger conn $ do
+  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ do
     maybeId <- runSelectReturningOne $ select query
     case maybeId of
       Just userId -> pure userId
@@ -143,7 +143,7 @@ insertComment postId comment = do
     HT.CommentDeleted -> pure Nothing
     HT.CommentExisting { .. } -> Just <$> ensureUserExists user
   let rec = makeCommentRecord postId parentCommentId userId comment
-  liftIO $ runBeamPostgresDebug stmtLogger conn $ fmap cId $ runInsertReturningOne $
+  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)

@@ -187,7 +187,7 @@ withConnection = bracket
   PGS.close
 
 runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
-runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = const $ pure () }
+runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = \_ _ -> pure () }
 
 clearTables :: IO ()
 clearTables = void $ withConnection $ \conn ->

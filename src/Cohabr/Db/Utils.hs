@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts, ConstraintKinds, RankNTypes #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -22,6 +22,7 @@ module Cohabr.Db.Utils
 , (||^)
 
 , SqlEnv(..)
+, LogMessageContext(..)
 , SqlMonad
 , withTransaction'
 ) where
@@ -116,9 +117,12 @@ infix 1 ||^
 (||^) :: (Applicative f, HasCallStack) => Bool -> String -> f ()
 (||^) cond str = unless cond $ throwSql str
 
+data LogMessageContext = LogSqlStmt | LogDebug | LogWarn
+  deriving (Eq, Ord, Show)
+
 data SqlEnv = SqlEnv
   { conn :: Connection
-  , stmtLogger :: String -> IO ()
+  , stmtLogger :: HasCallStack => LogMessageContext -> String -> IO ()
   }
 
 type SqlMonad m = (MonadReader SqlEnv m, MonadIO m)
