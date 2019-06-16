@@ -9,7 +9,7 @@ module Cohabr.Db.Inserts
 ) where
 
 import qualified Data.Text as T
-import qualified Database.PostgreSQL.Simple as PGS
+import Control.Monad.Reader
 import Data.Maybe
 import Data.String.Interpolate
 import Database.Beam hiding(timestamp)
@@ -24,10 +24,11 @@ import Cohabr.Db.Queries
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
-insertPost :: Connection -> HabrId -> HT.Post -> IO PKeyId
-insertPost conn habrId post@HT.Post { .. } = do
-  userId <- ensureUserExists conn user
-  PGS.withTransaction conn $ runBeamPostgresDebug putStrLn conn $ do
+insertPost :: SqlMonad m => HabrId -> HT.Post -> m PKeyId
+insertPost habrId post@HT.Post { .. } = do
+  userId <- ensureUserExists user
+  SqlEnv { .. } <- ask
+  withTransaction' $ runBeamPostgresDebug stmtLogger conn $ do
     versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
                     insertExpressions [makePostVersionRecord post]
     postId <- fmap pId $ runInsertReturningOne $ insert (cPosts cohabrDb) $
@@ -73,25 +74,27 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
 
-ensureUserExists :: Connection -> HT.UserInfo -> IO PKeyId
-ensureUserExists conn HT.UserInfo { .. } = runBeamPostgresDebug putStrLn conn $ do
-  maybeId <- runSelectReturningOne $ select query
-  case maybeId of
-    Just userId -> pure userId
-    Nothing -> do
-      newUid <- fmap uId $ runInsertReturningOne $
-                  insert (cUsers cohabrDb) $ insertExpressions [makeUserRecord username]
-      case avatar of
-        HT.DefaultAvatar {} -> pure ()
-        HT.CustomAvatar { .. } -> do
-          avatarId <- fmap uaId $ runInsertReturningOne $
-                        insert (cUserAvatars cohabrDb) $ insertExpressions [makeAvatarRecord newUid avatarLink]
-          updates <- runUpdateReturningList $ update
-                        (cUsers cohabrDb)
-                        (\u -> uCurrentAvatar u <-. val_ (Just avatarId))
-                        (\u -> uId u ==. val_ newUid)
-          length updates == 1 ||^ [i|#{length updates} rows affected by avatar update for user #{newUid}|]
-      pure newUid
+ensureUserExists :: SqlMonad m => HT.UserInfo -> m PKeyId
+ensureUserExists HT.UserInfo { .. } = do
+  SqlEnv { .. } <- ask
+  liftIO $ runBeamPostgresDebug stmtLogger conn $ do
+    maybeId <- runSelectReturningOne $ select query
+    case maybeId of
+      Just userId -> pure userId
+      Nothing -> do
+        newUid <- fmap uId $ runInsertReturningOne $
+                    insert (cUsers cohabrDb) $ insertExpressions [makeUserRecord username]
+        case avatar of
+          HT.DefaultAvatar {} -> pure ()
+          HT.CustomAvatar { .. } -> do
+            avatarId <- fmap uaId $ runInsertReturningOne $
+                          insert (cUserAvatars cohabrDb) $ insertExpressions [makeAvatarRecord newUid avatarLink]
+            updates <- runUpdateReturningList $ update
+                          (cUsers cohabrDb)
+                          (\u -> uCurrentAvatar u <-. val_ (Just avatarId))
+                          (\u -> uId u ==. val_ newUid)
+            length updates == 1 ||^ [i|#{length updates} rows affected by avatar update for user #{newUid}|]
+        pure newUid
   where
     query = fmap uId $ filter_ (\u -> uUsername u ==. val_ username) $ all_ $ cUsers cohabrDb
 
@@ -126,20 +129,21 @@ makeAvatarRecord userId link = UserAvatar
     linkStr = T.unpack link
     smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
 
-insertComment :: Connection -> PKeyId -> HT.Comment -> IO PKeyId
-insertComment conn postId comment = do
+insertComment :: SqlMonad m => PKeyId -> HT.Comment -> m PKeyId
+insertComment postId comment = do
+  SqlEnv { .. } <- ask
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
     cid -> do
-      found <- findCommentIdByHabrId conn $ HabrId cid
+      found <- liftIO $ findCommentIdByHabrId conn $ HabrId cid
       isJust found ||^
         [i|Parent comment not found for post #{postId}, comment #{HT.commentId comment} parent comment #{cid}|]
       pure found
   userId <- case HT.contents comment of
     HT.CommentDeleted -> pure Nothing
-    HT.CommentExisting { .. } -> Just <$> ensureUserExists conn user
+    HT.CommentExisting { .. } -> Just <$> ensureUserExists user
   let rec = makeCommentRecord postId parentCommentId userId comment
-  runBeamPostgresDebug putStrLn conn $ fmap cId $ runInsertReturningOne $
+  liftIO $ runBeamPostgresDebug stmtLogger conn $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)

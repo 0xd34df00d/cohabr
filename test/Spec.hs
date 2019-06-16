@@ -1,12 +1,12 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
-{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 
 import Test.Hspec
 
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
 import Control.Monad.IO.Class
-import Data.Functor
+import Control.Monad.Reader
 import Data.List(sort)
 import Data.Maybe
 import Data.Time.Calendar
@@ -79,11 +79,11 @@ main = hspec $ do
       pure () :: Expectation
   describe "Inserting new post" $ do
     it "inserts a new post" $
-      withConnection (\conn -> insertPost conn testPostId testPost) `shouldReturn` PKeyId 1
+      runSqlMonad (insertPost testPostId testPost) `shouldReturn` PKeyId 1
     it "fails due to dup key when inserting again" $
-      withConnection (\conn -> insertPost conn testPostId testPost) `shouldThrow` anyException
+      runSqlMonad (insertPost testPostId testPost) `shouldThrow` anyException
     it "inserts again with a different ID" $
-      withConnection (\conn -> insertPost conn testPostIdUpdateContents testPost) `shouldNotReturn` PKeyId 1
+      runSqlMonad (insertPost testPostIdUpdateContents testPost) `shouldNotReturn` PKeyId 1
   describe "Retrieving just inserted post" $
     testStoredPostMatches testPost testPostId
   describe "Updating post with new metainformation" $ do
@@ -176,6 +176,9 @@ withConnection :: (PGS.Connection -> IO c) -> IO c
 withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
   PGS.close
+
+runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
+runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = const $ pure () }
 
 clearTables :: IO ()
 clearTables = void $ withConnection $ \conn ->
