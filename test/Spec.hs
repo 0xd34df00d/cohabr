@@ -124,18 +124,17 @@ main = hspec $ do
       testStoredPostMatches updated testPostId
   where
     doUpdates updated habrId = do
-        Just stored <- withConnection $ \conn -> getStoredPostInfo conn habrId
+        Just stored <- runSqlMonad $ getStoredPostInfo habrId
         runSqlMonad $ updatePost $ postUpdateActions stored updated
-        Just (post', _) <- withConnection $ \conn -> findPostByHabrId conn habrId
+        Just (post', _) <- runSqlMonad $ findPostByHabrId habrId
         pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
 
     testStoredPostMatches post habrId = do
       it "finds just inserted post" $ do
-        maybeSavedPost <- liftIO $ withConnection $ \conn -> findPostByHabrId conn habrId
+        maybeSavedPost <- liftIO $ runSqlMonad $ findPostByHabrId habrId
         isJust maybeSavedPost `shouldBe` True
       it "saved post contents match" $ do
-        Just (Post { .. }, PostVersion { .. }) <- liftIO $
-            withConnection $ \conn -> findPostByHabrId conn habrId
+        Just (Post { .. }, PostVersion { .. }) <- liftIO $ runSqlMonad $ findPostByHabrId habrId
 
         let HT.Post { postStats = HT.PostStats { .. }, .. } = post
 
@@ -159,23 +158,23 @@ main = hspec $ do
         pvTitle `shouldBe` Just title
         pvContent `shouldBe` body
       it "produces the same hubs" $ do
-        hubs <- liftIO $ withConnection $ \conn -> do
-          vid <- pvId . snd . fromJust <$> findPostByHabrId conn habrId
-          getPostVersionHubs conn vid
+        hubs <- liftIO $ runSqlMonad $ do
+          vid <- pvId . snd . fromJust <$> findPostByHabrId habrId
+          getPostVersionHubs vid
         let expectedHubs = sort $ HT.hubs post
         let storedHubs = sort $ fromStoredHub <$> hubs
         storedHubs `shouldBe` expectedHubs
       it "produces the same tags" $ do
-        tags <- liftIO $ withConnection $ \conn -> do
-          vid <- pvId . snd . fromJust <$> findPostByHabrId conn habrId
-          getPostVersionTags conn vid
+        tags <- liftIO $ runSqlMonad $ do
+          vid <- pvId . snd . fromJust <$> findPostByHabrId habrId
+          getPostVersionTags vid
         let expectedTags = sort $ HT.tags post
         let storedTags = sort $ fromStoredTag <$> tags
         storedTags `shouldBe` expectedTags
       it "produces the same flags" $ do
-        flags <- liftIO $ withConnection $ \conn -> do
-          pid <- pId . fst . fromJust <$> findPostByHabrId conn habrId
-          getPostFlags conn pid
+        flags <- liftIO $ runSqlMonad $ do
+          pid <- pId . fst . fromJust <$> findPostByHabrId habrId
+          getPostFlags pid
         let expectedFlags = sort $ HT.flags post
         let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
         storedFlags `shouldBe` expectedFlags

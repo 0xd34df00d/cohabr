@@ -5,7 +5,6 @@
 module Cohabr.Diff where
 
 import qualified Data.HashSet as S
-import qualified Database.PostgreSQL.Simple as PGS
 import Data.Hashable
 import Data.Maybe
 import Database.Beam hiding(timestamp)
@@ -26,15 +25,15 @@ data StoredPostInfo = StoredPostInfo
   , storedPostTags :: [HT.Tag]
   }
 
-getStoredPostInfo :: PGS.Connection -> HabrId -> IO (Maybe StoredPostInfo)
-getStoredPostInfo conn habrId = do
-  maybePPV <- findPostByHabrId conn habrId
+getStoredPostInfo :: SqlMonad m => HabrId -> m (Maybe StoredPostInfo)
+getStoredPostInfo habrId = do
+  maybePPV <- findPostByHabrId habrId
   case maybePPV of
     Nothing -> pure Nothing
     Just (storedPost, storedCurrentVersion) -> do
       let postVerId = pvId storedCurrentVersion
-      storedPostHubs <- fmap fromStoredHub <$> getPostVersionHubs conn postVerId
-      storedPostTags <- fmap fromStoredTag <$> getPostVersionTags conn postVerId
+      storedPostHubs <- fmap fromStoredHub <$> getPostVersionHubs postVerId
+      storedPostTags <- fmap fromStoredTag <$> getPostVersionTags postVerId
       pure $ Just StoredPostInfo { .. }
 
 postUpdateActions :: StoredPostInfo -> HT.Post -> PostUpdateActions

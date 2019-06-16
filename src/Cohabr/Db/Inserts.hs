@@ -135,7 +135,7 @@ insertComment postId comment = do
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
     cid -> do
-      found <- liftIO $ findCommentIdByHabrId conn $ HabrId cid
+      found <- findCommentIdByHabrId $ HabrId cid
       isJust found ||^
         [i|Parent comment not found for post #{postId}, comment #{HT.commentId comment} parent comment #{cid}|]
       pure found
