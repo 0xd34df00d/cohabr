@@ -75,7 +75,6 @@ main = hspec $ do
   describe "Preparing the table" $
     it "drops the existing data" $ do
       liftIO clearTables
-      liftIO prepopulateHubs
       liftIO prepopulateFlags
       pure () :: Expectation
   describe "Inserting new post" $ do
@@ -204,13 +203,6 @@ clearTables = void $ withConnection $ \conn ->
     , "saved_images"
     , "user_avatars"
     , "users"
-    ]
-
-prepopulateHubs :: IO ()
-prepopulateHubs = void $ withConnection $ \conn ->
-  runBeamPostgres conn $ runInsert $ insert (cHubs cohabrDb) $ insertValues
-    [ Hub { hId = makeHubId hub, hName = HT.hubName hub }
-    | hub <- HT.hubs testPost
     ]
 
 prepopulateFlags :: IO ()
