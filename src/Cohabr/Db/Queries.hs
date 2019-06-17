@@ -44,3 +44,7 @@ findCommentIdByHabrId habrId = runPg $ runSelectReturningOne $ select query
 getPostComments :: SqlMonad m => PKeyId -> m [Comment]
 getPostComments postId = runPg $ runSelectReturningList $ select query
   where query = filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
+
+getUserAvatar :: SqlMonad m => PKeyId -> m (Maybe UserAvatar)
+getUserAvatar userId = runPg $ runSelectReturningOne $ select query
+  where query = filter_ (\ua -> uaUser ua ==. val_ userId) $ all_ $ cUserAvatars cohabrDb
