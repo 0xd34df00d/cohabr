@@ -177,12 +177,13 @@ postTests = do
         let storedTags = sort $ fromStoredTag <$> tags
         storedTags `shouldBe` expectedTags
       it "produces the same flags" $ do
-        flags <- runSqlMonad $ do
-          pid <- pId . fst . fromJust <$> findPostByHabrId habrId
-          getPostFlags pid
+        flags <- runSqlMonad $ getPostIdByHabrId habrId >>= getPostFlags
         let expectedFlags = sort $ HT.flags post
         let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
         storedFlags `shouldBe` expectedFlags
+
+getPostIdByHabrId :: SqlMonad m => HabrId -> m PKeyId
+getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
 
 withConnection :: (PGS.Connection -> IO c) -> IO c
 withConnection = bracket
