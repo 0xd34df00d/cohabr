@@ -124,7 +124,7 @@ makeAvatarRecord userId link = UserAvatar
   , uaUser = val_ userId
   , uaBigImageUrl = val_ link
   , uaSmallImageUrl = val_ smallLink
-  , discoveredDate = default_
+  , uaDiscoveredDate = default_
   }
   where
     linkStr = T.unpack link

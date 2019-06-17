@@ -159,7 +159,7 @@ data UserAvatarT f = UserAvatar
   , uaUser          :: Columnar f PKeyId
   , uaBigImageUrl   :: Columnar f Text
   , uaSmallImageUrl :: Columnar f Text
-  , discoveredDate  :: Columnar f (Maybe LocalTime)
+  , uaDiscoveredDate  :: Columnar f (Maybe LocalTime)
   } deriving (Generic, Beamable)
 
 type UserAvatar = UserAvatarT Identity
