@@ -77,6 +77,10 @@ main = hspec $ do
       liftIO clearTables
       liftIO prepopulateFlags
       pure () :: Expectation
+  postTests
+
+postTests :: Spec
+postTests = do
   describe "Inserting new post" $ do
     it "inserts a new post" $
       runSqlMonad (insertPost testPostId testPost) `shouldReturn` PKeyId 1
