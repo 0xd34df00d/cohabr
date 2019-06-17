@@ -1,9 +1,10 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, DeriveAnyClass #-}
 
 module Habr.Types where
 
 import qualified Data.Text as T
+import Data.Data
 import Data.Hashable
 import Data.Time.LocalTime
 import GHC.Generics
@@ -11,17 +12,17 @@ import GHC.Generics
 data Votes = Votes
   { pos :: Int
   , neg :: Int
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
 
 data Avatar
   = DefaultAvatar
   | CustomAvatar { avatarLink :: T.Text }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Data)
 
 data UserInfo = UserInfo
   { username :: T.Text
   , avatar :: Avatar
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
 
 data CommentContents
   = CommentDeleted
@@ -31,14 +32,14 @@ data CommentContents
     , commentText :: T.Text
     , timestamp :: LocalTime
     }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Data)
 
 data Comment = Comment
   { commentId :: Int
   , parentId :: Int
   , contents :: CommentContents
   , children :: [Comment]
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
 
 data PostViews = PostViews
   { isExactCount :: Bool
