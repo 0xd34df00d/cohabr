@@ -1,10 +1,11 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, TransformListComp #-}
 
 module Habr.Util
 ( buildCommentsTree
 ) where
 
 import qualified Data.IntMap as IM
+import Data.List
 import Data.Maybe
 
 import Habr.Types
@@ -16,4 +17,5 @@ buildCommentsTree comments = go 0
     idsTree = IM.fromListWith (<>) [(parentId, [commentId]) | Comment { .. } <- comments]
     go pid = [ (cid2comment IM.! thisId) { children = go thisId }
              | thisId <- fromMaybe [] $ IM.lookup pid idsTree
+             , then sortOn by thisId
              ]
