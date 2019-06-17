@@ -118,7 +118,7 @@ data CommentT f = Comment
   , cChanged    :: Columnar f (Maybe Bool)
   , cScorePlus  :: Columnar f (Maybe Int)
   , cScoreMinus :: Columnar f (Maybe Int)
-  , cDeleted    :: Columnar f (Maybe Bool)
+  , cDeleted    :: Columnar f Bool
   , cAuthor     :: Columnar f (Maybe PKeyId)
   } deriving (Generic, Beamable)
 
