@@ -14,7 +14,7 @@ data Votes = Votes
   } deriving (Eq, Ord, Show)
 
 data Avatar
-  = DefaultAvatar { svgElem :: T.Text }
+  = DefaultAvatar
   | CustomAvatar { avatarLink :: T.Text }
   deriving (Eq, Ord, Show)
 

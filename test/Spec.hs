@@ -36,7 +36,7 @@ testPost = HT.Post
   , HT.link = Just $ HT.Link "http://ya.ru" "Yayaya"
   , HT.user = HT.UserInfo
     { HT.username = "foouser"
-    , HT.avatar = HT.DefaultAvatar "svg"
+    , HT.avatar = HT.DefaultAvatar
     }
   , HT.timestamp = LocalTime (ModifiedJulianDay 58648) midnight
   , HT.postStats = HT.PostStats
