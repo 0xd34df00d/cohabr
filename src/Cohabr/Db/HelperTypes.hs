@@ -5,8 +5,8 @@ module Cohabr.Db.HelperTypes where
 import Database.Beam
 import Database.Beam.Backend.SQL
 
-newtype PKeyId = PKeyId { getPKeyId :: Int } deriving (Eq, Show, Num)
-newtype HabrId = HabrId { getHabrId :: Int } deriving (Eq, Show, Num)
+newtype PKeyId = PKeyId { getPKeyId :: Int } deriving (Eq, Ord, Show, Num)
+newtype HabrId = HabrId { getHabrId :: Int } deriving (Eq, Ord, Show, Num)
 
 deriving instance HasSqlValueSyntax sy Int => HasSqlValueSyntax sy PKeyId
 deriving instance HasSqlValueSyntax sy Int => HasSqlValueSyntax sy HabrId
