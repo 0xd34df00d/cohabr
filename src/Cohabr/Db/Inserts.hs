@@ -146,10 +146,10 @@ insertSingleComment postId comment = do
   runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
-insertCommentTree :: SqlMonad m => PKeyId -> HT.Comment -> m ()
-insertCommentTree postId comment = do
+insertCommentTree :: SqlMonad m => PKeyId -> [HT.Comment] -> m ()
+insertCommentTree postId = mapM_ $ \comment -> do
   void $ insertSingleComment postId comment
-  mapM_ (insertCommentTree postId) $ HT.children comment
+  insertCommentTree postId $ HT.children comment
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
 makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of
