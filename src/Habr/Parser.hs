@@ -7,7 +7,6 @@ module Habr.Parser
 , parsePost
 ) where
 
-import qualified Data.IntMap as IM
 import qualified Data.HashMap.Lazy as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -18,7 +17,6 @@ import Control.Monad.Reader
 import Data.Either.Combinators
 import Data.Functor
 import Data.List
-import Data.Maybe
 import Data.String.Interpolate
 import Data.Time.Calendar
 import Data.Time.Clock
@@ -31,6 +29,7 @@ import Text.XML.Selector.TH
 import Text.XML.Selector.Types
 
 import Habr.Types
+import Habr.Util
 import Habr.Internal.Util
 
 newtype ParseContext = ParseContext
@@ -119,16 +118,7 @@ readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts 
                   | otherwise = throwParseError [i|#{str} is not in approximate format|]
 
 parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m [Comment]
-parseComments root = buildTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
-
-buildTree :: [Comment] -> [Comment]
-buildTree comments = go 0
-  where
-    cid2comment = IM.fromList [(commentId c, c) | c <- comments]
-    idsTree = IM.fromListWith (<>) [(parentId, [commentId]) | Comment { .. } <- comments]
-    go pid = [ (cid2comment IM.! thisId) { children = go thisId }
-             | thisId <- fromMaybe [] $ IM.lookup pid idsTree
-             ]
+parseComments root = buildCommentsTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
 (@@) :: MonadError ParseError m => Cursor -> Name -> m T.Text
 cur @@ name | [val] <- attrs = pure val
