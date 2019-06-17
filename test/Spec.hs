@@ -20,6 +20,7 @@ import Cohabr.Db
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Queries
+import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT

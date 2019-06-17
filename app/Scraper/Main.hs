@@ -17,7 +17,7 @@ import System.IO
 import Database.PostgreSQL.Util
 import Cohabr.Db.Queries
 import Cohabr.Db.HelperTypes
-import Cohabr.Db.Utils
+import Cohabr.Db.SqlMonad
 import Habr.Parser
 import Habr.RSS
 

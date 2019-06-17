@@ -26,6 +26,7 @@ import Database.Beam.Postgres.Syntax
 import Cohabr.Db
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.SqlMonad
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 

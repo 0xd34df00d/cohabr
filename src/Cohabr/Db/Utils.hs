@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, ConstraintKinds, RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -20,28 +20,20 @@ module Cohabr.Db.Utils
 , SqlInvariantException
 , throwSql
 , (||^)
-
-, SqlEnv(..)
-, LogMessageContext(..)
-, SqlMonad
-, withTransactionPg
-, runPg
 ) where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
 import Control.Monad
-import Control.Monad.Reader
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
-import Database.Beam.Postgres
 import Database.Beam.Postgres.Full hiding(insert)
 import qualified Database.Beam.Postgres.Full as BPG
 import GHC.Stack
 
 import Cohabr.Db
+import Cohabr.Db.SqlMonad
 import qualified Habr.Types as HT
 
 expectSingleResult :: (HasCallStack, Monad m) => [a] -> m a
@@ -117,23 +109,3 @@ throwSql = throw . SqlInvariantException callStack
 infix 1 ||^
 (||^) :: (Applicative f, HasCallStack) => Bool -> String -> f ()
 (||^) cond str = unless cond $ throwSql str
-
-data LogMessageContext = LogSqlStmt | LogDebug | LogWarn
-  deriving (Eq, Ord, Show)
-
-data SqlEnv = SqlEnv
-  { conn :: Connection
-  , stmtLogger :: HasCallStack => LogMessageContext -> String -> IO ()
-  }
-
-type SqlMonad m = (MonadReader SqlEnv m, MonadIO m)
-
-withTransactionPg :: SqlMonad m => Pg a -> m a
-withTransactionPg pg = do
-  SqlEnv { .. } <- ask
-  liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
-
-runPg :: SqlMonad m => Pg a -> m a
-runPg pg = do
-  SqlEnv { .. } <- ask
-  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg

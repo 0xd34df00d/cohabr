@@ -7,7 +7,7 @@ import Database.Beam
 
 import Cohabr.Db
 import Cohabr.Db.HelperTypes
-import Cohabr.Db.Utils
+import Cohabr.Db.SqlMonad
 
 selectMissingPosts :: SqlMonad m => [HabrId] -> m [HabrId]
 selectMissingPosts candidates = (candidates \\) <$> runPg (runSelectReturningList $ select query)
