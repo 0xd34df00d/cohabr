@@ -3,9 +3,10 @@
 
 import Test.Hspec
 
+import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Exception
-import Control.Monad.IO.Class
+import Control.Monad.Except
 import Control.Monad.Reader
 import Data.List(sort)
 import Data.Maybe
@@ -18,6 +19,7 @@ import Database.Beam.Postgres
 import Cohabr.Diff
 import Cohabr.Db
 import Cohabr.Db.Conversions
+import Cohabr.Db.CommentsLoader
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Queries
@@ -70,15 +72,6 @@ changePostContents post = post
   { HT.title = "Yay we changed the title!"
   , HT.body = "Yay we changed the body!"
   }
-
-main :: IO ()
-main = hspec $ do
-  describe "Preparing the table" $
-    it "drops the existing data" $ do
-      liftIO clearTables
-      liftIO prepopulateFlags
-      pure () :: Expectation
-  postTests
 
 postTests :: Spec
 postTests = do
@@ -182,8 +175,88 @@ postTests = do
         let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
         storedFlags `shouldBe` expectedFlags
 
+initialTree :: [HT.Comment]
+initialTree =
+  [ HT.Comment
+    { HT.commentId = 10
+    , HT.parentId = 0
+    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a test comment" ts1
+    , HT.children =
+      [ HT.Comment
+        { HT.commentId = 11
+        , HT.parentId = 10
+        , HT.contents = HT.CommentExisting u2 (HT.Votes 2 4) "This is another test comment" ts2
+        , HT.children =
+          [ HT.Comment
+            { HT.commentId = 12
+            , HT.parentId = 11
+            , HT.contents = HT.CommentExisting u3 (HT.Votes 0 1) "This is third test comment" ts3
+            , HT.children = []
+            }
+          ]
+        }
+      , HT.Comment
+        { HT.commentId = 13
+        , HT.parentId = 10
+        , HT.contents = HT.CommentDeleted
+        , HT.children =
+          [ HT.Comment
+            { HT.commentId = 14
+            , HT.parentId = 13
+            , HT.contents = HT.CommentExisting u4 (HT.Votes 0 1) "This is fourth test comment" ts4
+            , HT.children = []
+            }
+          , HT.Comment
+            { HT.commentId = 15
+            , HT.parentId = 13
+            , HT.contents = HT.CommentExisting u1 (HT.Votes 7 2) "This is fifth test comment" ts5
+            , HT.children = []
+            }
+          ]
+        }
+      ]
+    }
+  , HT.Comment
+    { HT.commentId = 16
+    , HT.parentId = 0
+    , HT.contents = HT.CommentExisting u2 (HT.Votes 9 4) "This is sixth test comment" ts6
+    , HT.children = []
+    }
+  ]
+  where
+    [u1, u2, u3, u4] =
+      [ HT.UserInfo ("commuser" <> n') $ HT.CustomAvatar $ "http://avatars.link/" <> n'
+      | n <- [1..4]
+      , let n' = T.pack $ show (n :: Int)
+      ]
+    [ts1, ts2, ts3, ts4, ts5, ts6] =
+      [ LocalTime (ModifiedJulianDay 58648) $ dayFractionToTimeOfDay $ frac / 100
+      | frac <- [1..6]
+      ]
+
+commentTests :: Spec
+commentTests =
+  describe "Inserting a comment tree" $ do
+    it "inserts without error" $ do
+      pid <- runSqlMonad $ pId . fst . fromJust <$> findPostByHabrId testPostId
+      runSqlMonad $ insertCommentTree pid initialTree
+      pure () :: Expectation
+    it "restores the same comments" $ do
+      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      comments `shouldBe` initialTree
+
 getPostIdByHabrId :: SqlMonad m => HabrId -> m PKeyId
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
+
+main :: IO ()
+main = hspec $ do
+  describe "Preparing the table" $
+    it "drops the existing data" $ do
+      liftIO clearTables
+      liftIO prepopulateFlags
+      pure () :: Expectation
+  postTests
+  commentTests
 
 withConnection :: (PGS.Connection -> IO c) -> IO c
 withConnection = bracket
