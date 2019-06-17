@@ -40,3 +40,7 @@ getPostFlags postId = runPg $ runSelectReturningList $ select query
 findCommentIdByHabrId :: SqlMonad m => HabrId -> m (Maybe PKeyId)
 findCommentIdByHabrId habrId = runPg $ runSelectReturningOne $ select query
   where query = fmap cId $ filter_ (\comm -> cSourceId comm ==. val_ habrId) $ all_ $ cComments cohabrDb
+
+getPostComments :: SqlMonad m => PKeyId -> m [Comment]
+getPostComments postId = runPg $ runSelectReturningList $ select query
+  where query = filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
