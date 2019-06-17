@@ -135,10 +135,10 @@ postTests = do
 
     testStoredPostMatches post habrId = do
       it "finds just inserted post" $ do
-        maybeSavedPost <- liftIO $ runSqlMonad $ findPostByHabrId habrId
+        maybeSavedPost <- runSqlMonad $ findPostByHabrId habrId
         isJust maybeSavedPost `shouldBe` True
       it "saved post contents match" $ do
-        Just (Post { .. }, PostVersion { .. }) <- liftIO $ runSqlMonad $ findPostByHabrId habrId
+        Just (Post { .. }, PostVersion { .. }) <- runSqlMonad $ findPostByHabrId habrId
 
         let HT.Post { postStats = HT.PostStats { .. }, .. } = post
 
@@ -162,21 +162,21 @@ postTests = do
         pvTitle `shouldBe` Just title
         pvContent `shouldBe` body
       it "produces the same hubs" $ do
-        hubs <- liftIO $ runSqlMonad $ do
+        hubs <- runSqlMonad $ do
           vid <- pvId . snd . fromJust <$> findPostByHabrId habrId
           getPostVersionHubs vid
         let expectedHubs = sort $ HT.hubs post
         let storedHubs = sort $ fromStoredHub <$> hubs
         storedHubs `shouldBe` expectedHubs
       it "produces the same tags" $ do
-        tags <- liftIO $ runSqlMonad $ do
+        tags <- runSqlMonad $ do
           vid <- pvId . snd . fromJust <$> findPostByHabrId habrId
           getPostVersionTags vid
         let expectedTags = sort $ HT.tags post
         let storedTags = sort $ fromStoredTag <$> tags
         storedTags `shouldBe` expectedTags
       it "produces the same flags" $ do
-        flags <- liftIO $ runSqlMonad $ do
+        flags <- runSqlMonad $ do
           pid <- pId . fst . fromJust <$> findPostByHabrId habrId
           getPostFlags pid
         let expectedFlags = sort $ HT.flags post
@@ -188,8 +188,9 @@ withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
   PGS.close
 
-runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
-runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = \_ _ -> pure () }
+runSqlMonad :: MonadIO mio => (forall m. SqlMonad m => m a) -> mio a
+runSqlMonad act = liftIO $ withConnection $
+    \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = \_ _ -> pure () }
 
 clearTables :: IO ()
 clearTables = void $ withConnection $ \conn ->
