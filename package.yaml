@@ -27,6 +27,7 @@ dependencies:
 - containers
 - dom-selector
 - either
+- extra
 - feed
 - filepath
 - hashable
