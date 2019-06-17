@@ -3,12 +3,16 @@
 
 module Cohabr.Db.Inserts
 ( insertPost
-, insertComment
+
 , insertVersionHubs
 , insertVersionTags
+
+, insertSingleComment
+, insertCommentTree
 ) where
 
 import qualified Data.Text as T
+import Data.Functor
 import Data.Maybe
 import Data.String.Interpolate
 import Database.Beam hiding(timestamp)
@@ -126,8 +130,8 @@ makeAvatarRecord userId link = UserAvatar
     linkStr = T.unpack link
     smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
 
-insertComment :: SqlMonad m => PKeyId -> HT.Comment -> m PKeyId
-insertComment postId comment = do
+insertSingleComment :: SqlMonad m => PKeyId -> HT.Comment -> m PKeyId
+insertSingleComment postId comment = do
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
     cid -> do
@@ -141,6 +145,11 @@ insertComment postId comment = do
   let rec = makeCommentRecord postId parentCommentId userId comment
   runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
+
+insertCommentTree :: SqlMonad m => PKeyId -> HT.Comment -> m ()
+insertCommentTree postId comment = do
+  void $ insertSingleComment postId comment
+  mapM_ (insertCommentTree postId) $ HT.children comment
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
 makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of
