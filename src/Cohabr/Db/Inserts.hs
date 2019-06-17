@@ -22,6 +22,7 @@ import qualified Database.Beam.Postgres.Full as BPG
 import System.FilePath
 
 import Cohabr.Db
+import Cohabr.Db.Conversions
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad

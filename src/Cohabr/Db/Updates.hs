@@ -24,6 +24,7 @@ import Database.Beam.Postgres.Full hiding(insert)
 import Database.Beam.Postgres.Syntax
 
 import Cohabr.Db
+import Cohabr.Db.Conversions
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.SqlMonad
