@@ -160,7 +160,7 @@ parseUser cur = do
   avatar <- liftEither $ maybeToRight ["unable to parse image"] $ msum [userImg, defaultImg]
   pure UserInfo { .. }
   where
-    defaultImg = rightToMaybe (cur @> [jq|svg|]) $> DefaultAvatar
+    defaultImg = rightToMaybe (cur @> [jq|svg.default-image|]) $> DefaultAvatar
     userImg = CustomAvatar <$> rightToMaybe (cur @> [jq|img.user-info__image-pic|] @@^ "src")
 
 parseVotes :: MonadError ParseError m => Cursor -> m Votes
