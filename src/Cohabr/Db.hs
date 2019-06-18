@@ -115,7 +115,7 @@ data CommentT f = Comment
   , cUser       :: Columnar f (Maybe Text)
   , cDate       :: Columnar f (Maybe LocalTime)
   , cText       :: Columnar f (Maybe Text)
-  , cChanged    :: Columnar f (Maybe Bool)
+  , cChanged    :: Columnar f Bool
   , cScorePlus  :: Columnar f (Maybe Int)
   , cScoreMinus :: Columnar f (Maybe Int)
   , cDeleted    :: Columnar f Bool

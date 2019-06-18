@@ -40,7 +40,7 @@ fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM
       let contents
             | Just text <- cText = HT.CommentExisting
                 { HT.commentText = text
-                , HT.commentChanged = fromMaybe False cChanged
+                , HT.commentChanged = cChanged
                 , HT.user = fromMaybe user $ HT.UserInfo <$> cUser <*> pure avatar
                 , HT.votes = fromMaybe votes $ HT.Votes <$> cScorePlus <*> cScoreMinus
                 , HT.timestamp = fromMaybe timestamp cDate
