@@ -90,35 +90,35 @@ postTests = do
   describe "Updating post with new metainformation" $ do
     let updated = changePostMeta testPost
     it "inserts the update without errors keeping the version" $ do
-      (oldVerId, newVerId) <- liftIO $ doUpdates updated testPostId
+      (oldVerId, newVerId) <- doUpdates updated testPostId
       oldVerId `shouldBe` newVerId
     describe "stored post matches" $
       testStoredPostMatches updated testPostId
     describe "and then updating it with new contents" $ do
       let updated' = changePostContents updated
       it "inserts the update without errors changing the version" $ do
-        (oldVerId, newVerId) <- liftIO $ doUpdates updated' testPostId
+        (oldVerId, newVerId) <- doUpdates updated' testPostId
         oldVerId `shouldNotBe` newVerId
       describe "stored post matches" $
         testStoredPostMatches updated' testPostId
   describe "Updating post with new contents" $ do
     let updated = changePostContents testPost
     it "inserts the update changing the version" $ do
-      (oldVerId, newVerId) <- liftIO $ doUpdates updated testPostIdUpdateContents
+      (oldVerId, newVerId) <- doUpdates updated testPostIdUpdateContents
       oldVerId `shouldNotBe` newVerId
     describe "stored post matches" $
       testStoredPostMatches updated testPostIdUpdateContents
     describe "and then updating it with new meta" $ do
       let updated' = changePostMeta updated
       it "inserts the update without errors keeping the version" $ do
-        (oldVerId, newVerId) <- liftIO $ doUpdates updated' testPostIdUpdateContents
+        (oldVerId, newVerId) <- doUpdates updated' testPostIdUpdateContents
         oldVerId `shouldBe` newVerId
       describe "stored post matches" $
         testStoredPostMatches updated' testPostIdUpdateContents
   describe "Updating post with both new meta and contents" $ do
     let updated = changePostContents $ changePostMeta testPost
     it "inserts the update without errors updating the version" $ do
-      (oldVerId, newVerId) <- liftIO $ doUpdates updated testPostIdUpdateBoth
+      (oldVerId, newVerId) <- doUpdates updated testPostIdUpdateBoth
       oldVerId `shouldNotBe` newVerId
     describe "stored post matches" $
       testStoredPostMatches updated testPostId
@@ -139,7 +139,7 @@ postTests = do
         let HT.Post { postStats = HT.PostStats { .. }, .. } = post
 
         -- TODO time-1.9: compare local times directly
-        now <- liftIO $ localTimeToUTC utc . zonedTimeToLocalTime <$> getZonedTime
+        now <- localTimeToUTC utc . zonedTimeToLocalTime <$> getZonedTime
         diffUTCTime now (localTimeToUTC utc pvAdded) `shouldSatisfy` (< 5 {- seconds -})
 
         pSourceId `shouldBe` habrId
@@ -254,9 +254,8 @@ spec :: Spec
 spec = do
   describe "Preparing the table" $
     it "drops the existing data" $ do
-      liftIO clearTables
-      liftIO prepopulateFlags
-      pure () :: Expectation
+      clearTables
+      prepopulateFlags
   postTests
   commentTests
 
@@ -265,9 +264,8 @@ withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
   PGS.close
 
-runSqlMonad :: MonadIO mio => (forall m. SqlMonad m => m a) -> mio a
-runSqlMonad act = liftIO $ withConnection $
-    \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = \_ _ -> pure () }
+runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
+runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = \_ _ -> pure () }
 
 clearTables :: IO ()
 clearTables = void $ withConnection $ \conn ->
