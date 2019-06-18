@@ -85,3 +85,4 @@ tests:
     dependencies:
     - cohabr
     - hspec
+    - http-conduit
