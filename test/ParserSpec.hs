@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes, OverloadedStrings, RecordWildCards #-}
 
 module ParserSpec(spec) where
 
@@ -29,13 +29,13 @@ spec = beforeAll_ fetchPages $
       let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
       parseResult `shouldSatisfy` isRight
     it "parses the post metainformation correctly" $ do
-      post <- getParsedPost 203820
-      hubs post `shouldBeSet` [ Hub "silverlight" "Silverlight" NormalHub
-                              , Hub "net" ".NET" NormalHub
-                              , Hub "csharp" "C#" NormalHub
-                              ]
-      flags post `shouldBeSet` [Translation, Tutorial, Recovery]
-      tags post `shouldBeSet` (Tag <$> ["wcf ria services", "silverlight", "c#", ".net"])
+      Post { .. } <- getParsedPost 203820
+      hubs `shouldBeSet` [ Hub "silverlight" "Silverlight" NormalHub
+                         , Hub "net" ".NET" NormalHub
+                         , Hub "csharp" "C#" NormalHub
+                         ]
+      flags `shouldBeSet` [Translation, Tutorial, Recovery]
+      tags `shouldBeSet` (Tag <$> ["wcf ria services", "silverlight", "c#", ".net"])
     it "parses the title and body correctly" $ do
       post <- getParsedPost 203820
       title post `shouldBe` "WCF RIA Services. Начало. Часть 1"
