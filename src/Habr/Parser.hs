@@ -150,6 +150,7 @@ parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftE
       user <- parseUser cur
       votes <- parseVotes cur
       timestamp <- parseCommentTimestamp cur
+      let commentChanged = False
       pure CommentExisting { .. }
     parseDeleted = cur @> [jq|.js-comment > div.comment > div.comment__message_banned|] $> CommentDeleted
 

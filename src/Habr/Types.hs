@@ -31,6 +31,7 @@ data CommentContents
     { user :: UserInfo
     , votes :: Votes
     , commentText :: T.Text
+    , commentChanged :: Bool
     , timestamp :: LocalTime
     }
   deriving (Eq, Ord, Show, Data)
