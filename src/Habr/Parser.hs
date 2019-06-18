@@ -83,7 +83,7 @@ parseFlags root = do
                          , ("Из песочницы", Sandbox)
                          , ("Tutorial", Tutorial)
                          , ("Новость", News)
-                         , ("Recovery mode", Recovery)
+                         , ("Recovery Mode", Recovery)
                          , ("Из RSS", RssFeed)
                          ]
 
