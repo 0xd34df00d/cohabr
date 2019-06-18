@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import Data.Functor
 import Data.Maybe
 import Data.String.Interpolate
+import Data.Tree
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -148,10 +149,10 @@ insertSingleComment postId comment = do
   runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
-insertCommentTree :: SqlMonad m => PKeyId -> [HT.Comment] -> m ()
-insertCommentTree postId = mapM_ $ \comment -> do
-  void $ insertSingleComment postId comment
-  insertCommentTree postId $ HT.children comment
+insertCommentTree :: SqlMonad m => PKeyId -> HT.Comments -> m ()
+insertCommentTree postId = mapM_ $ \Node { .. } -> do
+  void $ insertSingleComment postId rootLabel
+  insertCommentTree postId subForest
 
 makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
 makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of

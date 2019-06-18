@@ -7,6 +7,7 @@ import qualified Data.Text as T
 import Data.Data
 import Data.Hashable
 import Data.Time.LocalTime
+import Data.Tree
 import GHC.Generics
 
 data Votes = Votes
@@ -38,8 +39,9 @@ data Comment = Comment
   { commentId :: Int
   , parentId :: Int
   , contents :: CommentContents
-  , children :: [Comment]
   } deriving (Eq, Ord, Show, Data)
+
+type Comments = Forest Comment
 
 data PostViews = PostViews
   { isExactCount :: Bool

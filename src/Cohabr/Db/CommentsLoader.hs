@@ -19,7 +19,7 @@ import Cohabr.Db.SqlMonad
 import Cohabr.Db.Queries
 import Cohabr.Db.Utils
 
-loadComments :: SqlMonad m => HT.CommentContents -> PKeyId -> m [HT.Comment]
+loadComments :: SqlMonad m => HT.CommentContents -> PKeyId -> m HT.Comments
 loadComments defaultContents postId = do
   storedComments <- getPostComments postId
   let authors = nubOrd $ mapMaybe cAuthor storedComments
@@ -29,7 +29,7 @@ loadComments defaultContents postId = do
        Right comments -> pure comments
        Left err -> throwSql err
 
-fromStoredComments :: forall m. MonadError String m => HT.CommentContents -> IM.IntMap HT.Avatar -> [Comment] -> m [HT.Comment]
+fromStoredComments :: forall m. MonadError String m => HT.CommentContents -> IM.IntMap HT.Avatar -> [Comment] -> m HT.Comments
 fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM convSingle comments
   where
     convSingle :: Comment -> m HT.Comment
@@ -45,7 +45,7 @@ fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM
                 , HT.timestamp = fromMaybe timestamp cDate
                 }
             | otherwise = HT.CommentDeleted
-      pure HT.Comment { children = [], .. }
+      pure HT.Comment { .. }
 
     getParentId Nothing = pure 0
     getParentId (Just parentPKey) | Just val <- IM.lookup (getPKeyId parentPKey) pkey2habrId = pure $ getHabrId val

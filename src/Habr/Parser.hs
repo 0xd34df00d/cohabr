@@ -115,7 +115,7 @@ readApproxInt :: MonadError ParseError m => String -> m Int
 readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read (hs : "00")
                   | otherwise = throwParseError [i|#{str} is not in approximate format|]
 
-parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m [Comment]
+parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Comments
 parseComments root = buildCommentsTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
 (@@) :: MonadError ParseError m => Cursor -> Name -> m T.Text
@@ -140,7 +140,6 @@ parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
   contents <- cur @> [jq|div.comment|] >>= parseCommentContents
-  let children = []
   pure Comment { .. }
 
 parseCommentContents :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m CommentContents

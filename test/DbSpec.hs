@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
+import Data.Tree
 import Database.Beam hiding(timestamp)
 import Database.Beam.Postgres
 
@@ -177,53 +178,56 @@ postTests = do
         let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
         storedFlags `shouldBe` expectedFlags
 
-initialTree :: [HT.Comment]
+initialTree :: HT.Comments
 initialTree =
-  [ HT.Comment
-    { HT.commentId = 10
-    , HT.parentId = 0
-    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a test comment" False ts1
-    , HT.children =
-      [ HT.Comment
-        { HT.commentId = 11
-        , HT.parentId = 10
-        , HT.contents = HT.CommentExisting u2 (HT.Votes 2 4) "This is another test comment" True ts2
-        , HT.children =
-          [ HT.Comment
-            { HT.commentId = 12
-            , HT.parentId = 11
-            , HT.contents = HT.CommentExisting u3 (HT.Votes 0 1) "This is third test comment" False ts3
-            , HT.children = []
-            }
+  [ Node
+      HT.Comment
+      { HT.commentId = 10
+      , HT.parentId = 0
+      , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a test comment" False ts1
+      }
+      [ Node
+          HT.Comment
+          { HT.commentId = 11
+          , HT.parentId = 10
+          , HT.contents = HT.CommentExisting u2 (HT.Votes 2 4) "This is another test comment" True ts2
+          }
+          [ Node
+              HT.Comment
+              { HT.commentId = 12
+              , HT.parentId = 11
+              , HT.contents = HT.CommentExisting u3 (HT.Votes 0 1) "This is third test comment" False ts3
+              }
+              []
           ]
-        }
-      , HT.Comment
-        { HT.commentId = 13
-        , HT.parentId = 10
-        , HT.contents = HT.CommentDeleted
-        , HT.children =
-          [ HT.Comment
-            { HT.commentId = 14
-            , HT.parentId = 13
-            , HT.contents = HT.CommentExisting u4 (HT.Votes 0 1) "This is fourth test comment" False ts4
-            , HT.children = []
-            }
-          , HT.Comment
-            { HT.commentId = 15
-            , HT.parentId = 13
-            , HT.contents = HT.CommentExisting u1 (HT.Votes 7 2) "This is fifth test comment" False ts5
-            , HT.children = []
-            }
+      , Node
+          HT.Comment
+          { HT.commentId = 13
+          , HT.parentId = 10
+          , HT.contents = HT.CommentDeleted
+          }
+          [ Node
+              HT.Comment
+              { HT.commentId = 14
+              , HT.parentId = 13
+              , HT.contents = HT.CommentExisting u4 (HT.Votes 0 1) "This is fourth test comment" False ts4
+              }
+              []
+          , Node
+              HT.Comment
+              { HT.commentId = 15
+              , HT.parentId = 13
+              , HT.contents = HT.CommentExisting u1 (HT.Votes 7 2) "This is fifth test comment" False ts5
+              }
+              []
           ]
-        }
       ]
-    }
-  , HT.Comment
-    { HT.commentId = 16
-    , HT.parentId = 0
-    , HT.contents = HT.CommentExisting u2 (HT.Votes 9 4) "This is sixth test comment" False ts6
-    , HT.children = []
-    }
+  , Node HT.Comment
+      { HT.commentId = 16
+      , HT.parentId = 0
+      , HT.contents = HT.CommentExisting u2 (HT.Votes 9 4) "This is sixth test comment" False ts6
+      }
+    []
   ]
   where
     [u1, u2, u3, u4] =
