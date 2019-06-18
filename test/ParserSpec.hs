@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Data.Either
 import Data.List
 import Data.String.Interpolate.IsString
+import Data.Time.Calendar
 import Data.Time.LocalTime
 import Network.HTTP.Conduit
 import Test.Hspec
@@ -36,6 +37,23 @@ spec = beforeAll_ fetchPages $
                          ]
       flags `shouldBeSet` [Translation, Tutorial, Recovery]
       tags `shouldBeSet` (Tag <$> ["wcf ria services", "silverlight", "c#", ".net"])
+      link `shouldBe` Just Link
+                           { linkUrl = "http://www.silverlightshow.net/items/WCF-RIA-Services-Part-1-Getting-Started.aspx"
+                           , linkName = "Brian Noyes"
+                           }
+      user `shouldBe` UserInfo
+                      { username = "struggleendlessly"
+                      , avatar = CustomAvatar "//habrastorage.org/getpro/habr/avatars/92e/3fc/1b2/92e3fc1b2ba53dfc6ae8618dc5efb653.jpg"
+                      }
+      timestamp `shouldBe` LocalTime
+                           { localDay = fromGregorian 2013 11 27
+                           , localTimeOfDay = TimeOfDay 10 52 0
+                           }
+      postStats `shouldBe` PostStats
+                           { votes = Votes 5 3
+                           , bookmarks = 58
+                           , views = PostViews False 37200
+                           }
     it "parses the title and body correctly" $ do
       post <- getParsedPost 203820
       title post `shouldBe` "WCF RIA Services. Начало. Часть 1"
