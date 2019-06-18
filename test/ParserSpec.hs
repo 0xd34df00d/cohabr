@@ -30,12 +30,12 @@ spec = beforeAll_ fetchPages $
       parseResult `shouldSatisfy` isRight
     it "parses the post metainformation correctly" $ do
       post <- getParsedPost 203820
-      sort (hubs post) `shouldBe` sort [ Hub "silverlight" "Silverlight" NormalHub
-                                       , Hub "net" ".NET" NormalHub
-                                       , Hub "csharp" "C#" NormalHub
-                                       ]
-      sort (flags post) `shouldBe` sort [Translation, Tutorial, Recovery]
-      sort (tags post) `shouldBe` sort (Tag <$> ["wcf ria services", "silverlight", "c#", ".net"])
+      hubs post `shouldBeSet` [ Hub "silverlight" "Silverlight" NormalHub
+                              , Hub "net" ".NET" NormalHub
+                              , Hub "csharp" "C#" NormalHub
+                              ]
+      flags post `shouldBeSet` [Translation, Tutorial, Recovery]
+      tags post `shouldBeSet` (Tag <$> ["wcf ria services", "silverlight", "c#", ".net"])
     it "parses the title and body correctly" $ do
       post <- getParsedPost 203820
       title post `shouldBe` "WCF RIA Services. Начало. Часть 1"
@@ -66,3 +66,6 @@ getParsedPost pgId = do
   case runExcept $ runReaderT (parsePost root) ParseContext { currentTime = now } of
     Left err -> error [i|Unable to parse post: #{err}|]
     Right post -> pure post
+
+shouldBeSet :: (Ord a, Show a) => [a] -> [a] -> Expectation
+shouldBeSet l r = sort l `shouldBe` sort r
