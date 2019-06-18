@@ -35,6 +35,7 @@ spec = beforeAll_ fetchPages $
                                        , Hub "csharp" "C#" NormalHub
                                        ]
       sort (flags post) `shouldBe` sort [Translation, Tutorial, Recovery]
+      sort (tags post) `shouldBe` sort (Tag <$> ["wcf ria services", "silverlight", "c#", ".net"])
     it "parses the title and body correctly" $ do
       post <- getParsedPost 203820
       title post `shouldBe` "WCF RIA Services. Начало. Часть 1"
