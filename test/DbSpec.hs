@@ -146,7 +146,7 @@ postTests = do
         pSourceId `shouldBe` habrId
         pPublished `shouldBe` timestamp
         pUser `shouldBe` Just (HT.username user)
-        pLink `shouldBe` HT.linkUrl <$> link
+        pLink `shouldBe` HT.getUrl . HT.linkUrl <$> link
         pLinkName `shouldBe` HT.linkName <$> link
         pScorePlus `shouldBe` Just (HT.pos votes)
         pScoreMinus `shouldBe` Just (HT.neg votes)
@@ -231,7 +231,7 @@ initialTree =
   ]
   where
     [u1, u2, u3, u4] =
-      [ HT.UserInfo ("commuser" <> n') $ HT.CustomAvatar $ "http://avatars.link/" <> n'
+      [ HT.UserInfo ("commuser" <> n') $ HT.CustomAvatar $ HT.URL $ "http://avatars.link/" <> n'
       | n <- [1..4]
       , let n' = T.pack $ show (n :: Int)
       ]

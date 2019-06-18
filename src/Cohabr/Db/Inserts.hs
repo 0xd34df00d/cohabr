@@ -68,7 +68,7 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
   , pSourceId = val_ habrId
   , pUser = val_ $ Just $ HT.username user
   , pPublished = val_ timestamp
-  , pLink = val_ $ HT.linkUrl <$> link
+  , pLink = val_ $ HT.getUrl . HT.linkUrl <$> link
   , pLinkName = val_ $ HT.linkName <$> link
   , pScorePlus = val_ $ Just pos
   , pScoreMinus = val_ $ Just neg
@@ -121,16 +121,16 @@ makeUserRecord username = User
   , uDeleted = val_ False
   }
 
-makeAvatarRecord :: PKeyId -> T.Text -> forall s. UserAvatarT (QExpr Postgres s)
+makeAvatarRecord :: PKeyId -> HT.URL -> forall s. UserAvatarT (QExpr Postgres s)
 makeAvatarRecord userId link = UserAvatar
   { uaId = default_
   , uaUser = val_ userId
-  , uaBigImageUrl = val_ link
+  , uaBigImageUrl = val_ $ HT.getUrl link
   , uaSmallImageUrl = val_ smallLink
   , uaDiscoveredDate = default_
   }
   where
-    linkStr = T.unpack link
+    linkStr = T.unpack $ HT.getUrl link
     smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
 
 insertSingleComment :: SqlMonad m => PKeyId -> HT.Comment -> m PKeyId

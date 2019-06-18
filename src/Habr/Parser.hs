@@ -91,7 +91,7 @@ parseLink :: MonadError ParseError m => Cursor -> m (Maybe Link)
 parseLink root = case runExcept $ root @> [jq|a.post__translatation-link|] of
   Left _ -> pure Nothing
   Right aElem -> do
-    linkUrl <- aElem @@ "href"
+    linkUrl <- URL <$> aElem @@ "href"
     let linkText = TL.toStrict $ innerHtml aElem
     linkName <- if textPrefix `T.isPrefixOf` linkText
                    then pure $ T.drop (T.length textPrefix) linkText
@@ -161,7 +161,7 @@ parseUser cur = do
   pure UserInfo { .. }
   where
     defaultImg = rightToMaybe (cur @> [jq|svg.default-image|]) $> DefaultAvatar
-    userImg = CustomAvatar <$> rightToMaybe (cur @> [jq|img.user-info__image-pic|] @@^ "src")
+    userImg = CustomAvatar . URL <$> rightToMaybe (cur @> [jq|img.user-info__image-pic|] @@^ "src")
 
 parseVotes :: MonadError ParseError m => Cursor -> m Votes
 parseVotes cur = do

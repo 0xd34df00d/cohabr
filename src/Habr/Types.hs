@@ -1,14 +1,19 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving #-}
 
 module Habr.Types where
 
 import qualified Data.Text as T
 import Data.Data
 import Data.Hashable
+import Data.String
 import Data.Time.LocalTime
 import Data.Tree
 import GHC.Generics
+
+newtype URL = URL { getUrl :: T.Text }
+  deriving (Eq, Ord, Show, Data)
+  deriving newtype (IsString, Semigroup, Monoid)
 
 data Votes = Votes
   { pos :: Int
@@ -17,7 +22,7 @@ data Votes = Votes
 
 data Avatar
   = DefaultAvatar
-  | CustomAvatar { avatarLink :: T.Text }
+  | CustomAvatar { avatarLink :: URL }
   deriving (Eq, Ord, Show, Data)
 
 data UserInfo = UserInfo
@@ -71,7 +76,7 @@ data Hub = Hub
   } deriving (Eq, Ord, Show, Generic, Hashable)
 
 data Link = Link
-  { linkUrl :: T.Text
+  { linkUrl :: URL
   , linkName :: T.Text
   } deriving (Eq, Ord, Show)
 

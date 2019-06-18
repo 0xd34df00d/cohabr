@@ -57,4 +57,4 @@ fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM
     HT.CommentExisting { .. } = defaultContents
 
 fromStoredAvatar :: UserAvatar -> HT.Avatar
-fromStoredAvatar = HT.CustomAvatar . uaBigImageUrl
+fromStoredAvatar = HT.CustomAvatar . HT.URL . uaBigImageUrl
