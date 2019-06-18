@@ -118,7 +118,7 @@ expectedComments203820 =
             { user = UserInfo "jonie" $ CustomAvatar "//habrastorage.org/r/w48/getpro/habr/avatars/2f0/aff/a48/2f0affa48aacc595d3cf52560bed91c2.jpg"
             , votes = Votes 0 0
             , commentText = "Не умеете. Есть например OData factory (System.ServiceModel.DomainServices.Hosting.ODataEndpointFactory) под это дело…"
-            , commentChanged = False
+            , commentChanged = True
             , timestamp = LocalTime (fromGregorian 2013 11 27) (TimeOfDay 12 59 0)
             }
           }
