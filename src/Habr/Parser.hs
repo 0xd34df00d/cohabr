@@ -139,7 +139,7 @@ parseSingleComment :: (MonadReader ParseContext m, MonadError ParseError m) => C
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
-  contents <- parseCommentContents cur
+  contents <- cur @> [jq|div.comment|] >>= parseCommentContents
   let children = []
   pure Comment { .. }
 
