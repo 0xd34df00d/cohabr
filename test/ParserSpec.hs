@@ -12,7 +12,7 @@ import Data.Time.LocalTime
 import Network.HTTP.Conduit
 import Test.Hspec
 import Text.HTML.DOM(parseLBS)
-import Text.XML.Cursor(fromDocument)
+import Text.XML.Cursor(Cursor, fromDocument)
 import System.Directory.Extra
 
 import Habr.Parser
@@ -22,8 +22,7 @@ spec = beforeAll_ fetchPages $
   describe "Habr parser" $
     it "parses a page successfully" $ do
       now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
-      postPage <- liftIO $ LBS.readFile $ pathForId 203820
-      let root = fromDocument $ parseLBS postPage
+      root <- rootElem 203820
       let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
       parseResult `shouldSatisfy` isRight
 
@@ -40,3 +39,6 @@ fetchPages = do
 
 pathForId :: Int -> FilePath
 pathForId pgId = [i|test/testpages/#{pgId}|]
+
+rootElem :: MonadIO m => Int -> m Cursor
+rootElem pgId = liftIO $ fromDocument . parseLBS <$> LBS.readFile (pathForId pgId)
