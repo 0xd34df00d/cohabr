@@ -63,9 +63,9 @@ data PostStats = PostStats
 data Flag = RssFeed | Draftbox | News | Recovery | Tutorial | Translation | Sandbox
   deriving (Eq, Ord, Show, Enum, Bounded, Generic, Hashable)
 
-newtype Tag = Tag
-  { name :: T.Text
-  } deriving (Eq, Ord, Show, Generic, Hashable)
+newtype Tag = Tag { name :: T.Text }
+  deriving (Eq, Ord, Show, Generic)
+  deriving anyclass Hashable
 
 data HubKind = NormalHub | CompanyHub deriving (Eq, Ord, Show, Generic, Hashable)
 
