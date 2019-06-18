@@ -67,7 +67,7 @@ parseHubs root = forM (queryT [jq|.hub-link|] root) $ \cur -> do
     analyzeLink parts = throwParseError [i|unknown hub link format: #{parts}|]
 
 parseTags :: MonadError ParseError m => Cursor -> m [Tag]
-parseTags root = forM (queryT [jq|.post_tag|] root) $ \cur -> do
+parseTags root = forM (queryT [jq|.post__tag|] root) $ \cur -> do
   let name = TL.toStrict $ innerHtml cur
   pure Tag { .. }
 
