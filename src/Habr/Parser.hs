@@ -21,7 +21,7 @@ import Data.String.Interpolate
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
-import Data.Time.Format(defaultTimeLocale, months, parseTimeM, iso8601DateFormat)
+import Data.Time.Format(defaultTimeLocale, months, parseTimeM)
 import Text.XML
 import Text.XML.Cursor
 import Text.XML.Scraping
@@ -100,10 +100,8 @@ parseLink root = case runExcept $ root @> [jq|a.post__translatation-link|] of
   where textPrefix = "Автор оригинала: "
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
-parsePostTime :: MonadError ParseError m => Cursor -> m LocalTime
-parsePostTime root = do
-  timeText <- root @> [jq|.post__time|] @@^ "data-time_published"
-  parseTimeM False defaultTimeLocale (iso8601DateFormat $ Just "%H:%MZ") $ T.unpack timeText
+parsePostTime :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m LocalTime
+parsePostTime root = root @>. [jq|.post__time|] >>= parseHumanReadableTimestamp
 
 parsePostStats :: MonadError ParseError m => Cursor -> m PostStats
 parsePostStats cur = do
@@ -174,9 +172,10 @@ parseVotes cur = do
   pure Votes { .. }
 
 parseCommentTimestamp :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m LocalTime
-parseCommentTimestamp cur = do
-  text <- cur @>. [jq| time |]
-  parse $ T.unpack <$> T.words text
+parseCommentTimestamp cur = cur @>. [jq|time|] >>= parseHumanReadableTimestamp
+
+parseHumanReadableTimestamp :: (MonadReader ParseContext m, MonadError ParseError m) => T.Text -> m LocalTime
+parseHumanReadableTimestamp text = parse $ T.unpack <$> T.words text
   where
     parse [marker, _, timeStr] = do
       time <- parseTime timeStr
