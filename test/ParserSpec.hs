@@ -159,12 +159,15 @@ fetchPages = do
     let pgPath = pathForId pgId
     unlessM (doesPathExist pgPath) $ do
       putStrLn [i|Fetching #{pgId}...|]
-      pgContents <- simpleHttp [i|https://habr.com/ru/post/#{pgId}/|]
+      pgContents <- simpleHttp $ urlForId pgId
       LBS.writeFile pgPath pgContents
   where ids = [203820]
 
 pathForId :: Int -> FilePath
 pathForId pgId = [i|test/testpages/#{pgId}|]
+
+urlForId :: IsString a => Int -> a
+urlForId pgId = [i|https://habr.com/ru/post/#{pgId}/|]
 
 rootElem :: Int -> IO Cursor
 rootElem pgId = fromDocument . parseLBS <$> LBS.readFile (pathForId pgId)
