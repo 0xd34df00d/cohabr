@@ -52,33 +52,33 @@ type Comments = Forest Comment
 data PostViews = PostViews
   { isExactCount :: Bool
   , viewsCount :: Int
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
 
 data PostStats = PostStats
   { votes :: Votes
   , bookmarks :: Int
   , views :: PostViews
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
 
 data Flag = RssFeed | Draftbox | News | Recovery | Tutorial | Translation | Sandbox
-  deriving (Eq, Ord, Show, Enum, Bounded, Generic, Hashable)
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic, Hashable, Data)
 
 newtype Tag = Tag { name :: T.Text }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic, Data)
   deriving anyclass Hashable
 
-data HubKind = NormalHub | CompanyHub deriving (Eq, Ord, Show, Generic, Hashable)
+data HubKind = NormalHub | CompanyHub deriving (Eq, Ord, Show, Generic, Hashable, Data)
 
 data Hub = Hub
   { hubCode :: T.Text
   , hubName :: T.Text
   , hubKind :: HubKind
-  } deriving (Eq, Ord, Show, Generic, Hashable)
+  } deriving (Eq, Ord, Show, Generic, Hashable, Data)
 
 data Link = Link
   { linkUrl :: URL
   , linkName :: T.Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
 
 data Post = Post
   { title :: T.Text
@@ -90,4 +90,4 @@ data Post = Post
   , user :: UserInfo
   , timestamp :: LocalTime
   , postStats :: PostStats
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Data)
