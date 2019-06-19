@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Data.Either
 import Data.Generics.Uniplate.Data
 import Data.List
+import Data.String
 import Data.String.Interpolate.IsString
 import Data.Time.Calendar
 import Data.Time.LocalTime
@@ -20,6 +21,7 @@ import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(Cursor, fromDocument)
 import System.Directory.Extra
 
+import Habr.Normalizer
 import Habr.Parser
 import Habr.Types
 
@@ -45,7 +47,7 @@ spec = beforeAll_ fetchPages $
                            }
       user `shouldBe` UserInfo
                       { username = "struggleendlessly"
-                      , avatar = CustomAvatar "//habrastorage.org/getpro/habr/avatars/92e/3fc/1b2/92e3fc1b2ba53dfc6ae8618dc5efb653.jpg"
+                      , avatar = CustomAvatar "https://habrastorage.org/getpro/habr/avatars/92e/3fc/1b2/92e3fc1b2ba53dfc6ae8618dc5efb653.jpg"
                       }
       timestamp `shouldBe` LocalTime
                            { localDay = fromGregorian 2013 11 27
@@ -77,7 +79,7 @@ expectedComments203820 =
       { commentId = 7032184
       , parentId = 0
       , contents = CommentExisting
-        { user = UserInfo "isxaker" $ CustomAvatar "//habrastorage.org/r/w48/getpro/habr/avatars/b02/9c6/eed/b029c6eed810389dad377cbe051502be.png"
+        { user = UserInfo "isxaker" $ CustomAvatar "https://habrastorage.org/r/w48/getpro/habr/avatars/b02/9c6/eed/b029c6eed810389dad377cbe051502be.png"
         , votes = Votes 0 0
         , commentText = "а почему вы выбрали именно silverlight app?"
         , commentChanged = False
@@ -89,7 +91,7 @@ expectedComments203820 =
           { commentId = 7032204
           , parentId = 7032184
           , contents = CommentExisting
-            { user = UserInfo "struggleendlessly" $ CustomAvatar "//habrastorage.org/r/w48/getpro/habr/avatars/92e/3fc/1b2/92e3fc1b2ba53dfc6ae8618dc5efb653.jpg"
+            { user = UserInfo "struggleendlessly" $ CustomAvatar "https://habrastorage.org/r/w48/getpro/habr/avatars/92e/3fc/1b2/92e3fc1b2ba53dfc6ae8618dc5efb653.jpg"
             , votes = Votes 0 0
             , commentText = "для меня работать с XAML в разы приятней и легче, чем cо знаменитой пачкой: HTML + CSS + JS."
             , commentChanged = False
@@ -115,7 +117,7 @@ expectedComments203820 =
           { commentId = 7032428
           , parentId = 7032282
           , contents = CommentExisting
-            { user = UserInfo "jonie" $ CustomAvatar "//habrastorage.org/r/w48/getpro/habr/avatars/2f0/aff/a48/2f0affa48aacc595d3cf52560bed91c2.jpg"
+            { user = UserInfo "jonie" $ CustomAvatar "https://habrastorage.org/r/w48/getpro/habr/avatars/2f0/aff/a48/2f0affa48aacc595d3cf52560bed91c2.jpg"
             , votes = Votes 0 0
             , commentText = "Не умеете. Есть например OData factory (System.ServiceModel.DomainServices.Hosting.ODataEndpointFactory) под это дело…"
             , commentChanged = True
@@ -139,7 +141,7 @@ expectedComments203820 =
                   { commentId = 7033012
                   , parentId = 7032554
                   , contents = CommentExisting
-                    { user = UserInfo "jonie" $ CustomAvatar "//habrastorage.org/r/w48/getpro/habr/avatars/2f0/aff/a48/2f0affa48aacc595d3cf52560bed91c2.jpg"
+                    { user = UserInfo "jonie" $ CustomAvatar "https://habrastorage.org/r/w48/getpro/habr/avatars/2f0/aff/a48/2f0affa48aacc595d3cf52560bed91c2.jpg"
                     , votes = Votes 0 0
                     , commentText = [i|К примеру вот: <a href="http://code.msdn.microsoft.com/How-to-open-a-WCF-RIA-171139fb#content">code.msdn.microsoft.com/How-to-open-a-WCF-RIA-171139fb#content</a>|]
                     , commentChanged = False
@@ -178,7 +180,7 @@ getParsedPost pgId = do
   root <- rootElem pgId
   case runExcept $ runReaderT (parsePost root) ParseContext { currentTime = now } of
     Left err -> error [i|Unable to parse post: #{err}|]
-    Right post -> pure post
+    Right post -> pure $ normalizeUrls (urlForId pgId) post
 
 getParsedComments :: Int -> IO Comments
 getParsedComments pgId = do
@@ -186,7 +188,7 @@ getParsedComments pgId = do
   root <- rootElem pgId
   case runExcept $ runReaderT (parseComments root) ParseContext { currentTime = now } of
     Left err -> error [i|Unable to parse post: #{err}|]
-    Right post -> pure post
+    Right post -> pure $ normalizeUrls (urlForId pgId) post
 
 shouldBeSet :: (Ord a, Show a) => [a] -> [a] -> Expectation
 shouldBeSet l r = sort l `shouldBe` sort r
