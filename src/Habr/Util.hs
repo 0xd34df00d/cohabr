@@ -1,13 +1,16 @@
-{-# LANGUAGE RecordWildCards, TransformListComp #-}
+{-# LANGUAGE RecordWildCards, TransformListComp, QuasiQuotes #-}
 
 module Habr.Util
 ( buildCommentsTree
+, urlForPostId
 ) where
 
 import qualified Data.IntMap as IM
 import Data.List
 import Data.Maybe
 import Data.Tree
+import Data.String
+import Data.String.Interpolate.IsString
 
 import Habr.Types
 
@@ -20,3 +23,6 @@ buildCommentsTree comments = go 0
              | thisId <- fromMaybe [] $ IM.lookup pid idsTree
              , then sortOn by thisId
              ]
+
+urlForPostId :: IsString a => Int -> a
+urlForPostId pgId = [i|https://habr.com/ru/post/#{pgId}/|]

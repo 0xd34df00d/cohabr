@@ -10,7 +10,6 @@ import Control.Monad.Reader
 import Data.Either
 import Data.Generics.Uniplate.Data
 import Data.List
-import Data.String
 import Data.String.Interpolate.IsString
 import Data.Time.Calendar
 import Data.Time.LocalTime
@@ -24,6 +23,7 @@ import System.Directory.Extra
 import Habr.Normalizer
 import Habr.Parser
 import Habr.Types
+import Habr.Util
 
 spec :: Spec
 spec = beforeAll_ fetchPages $
@@ -161,15 +161,12 @@ fetchPages = do
     let pgPath = pathForId pgId
     unlessM (doesPathExist pgPath) $ do
       putStrLn [i|Fetching #{pgId}...|]
-      pgContents <- simpleHttp $ urlForId pgId
+      pgContents <- simpleHttp $ urlForPostId pgId
       LBS.writeFile pgPath pgContents
   where ids = [203820]
 
 pathForId :: Int -> FilePath
 pathForId pgId = [i|test/testpages/#{pgId}|]
-
-urlForId :: IsString a => Int -> a
-urlForId pgId = [i|https://habr.com/ru/post/#{pgId}/|]
 
 rootElem :: Int -> IO Cursor
 rootElem pgId = fromDocument . parseLBS <$> LBS.readFile (pathForId pgId)
@@ -180,7 +177,7 @@ getParsedPost pgId = do
   root <- rootElem pgId
   case runExcept $ runReaderT (parsePost root) ParseContext { currentTime = now } of
     Left err -> error [i|Unable to parse post: #{err}|]
-    Right post -> pure $ normalizeUrls (urlForId pgId) post
+    Right post -> pure $ normalizeUrls (urlForPostId pgId) post
 
 getParsedComments :: Int -> IO Comments
 getParsedComments pgId = do
@@ -188,7 +185,7 @@ getParsedComments pgId = do
   root <- rootElem pgId
   case runExcept $ runReaderT (parseComments root) ParseContext { currentTime = now } of
     Left err -> error [i|Unable to parse post: #{err}|]
-    Right post -> pure $ normalizeUrls (urlForId pgId) post
+    Right post -> pure $ normalizeUrls (urlForPostId pgId) post
 
 shouldBeSet :: (Ord a, Show a) => [a] -> [a] -> Expectation
 shouldBeSet l r = sort l `shouldBe` sort r

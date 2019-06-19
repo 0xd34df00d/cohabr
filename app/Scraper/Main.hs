@@ -1,12 +1,11 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, RankNTypes #-}
-{-# LANGUAGE QuasiQuotes, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Control.Concurrent.Async
 import Control.Monad.Except
 import Control.Monad.Reader
-import Data.String.Interpolate
 import Data.Time.LocalTime
 import Network.HTTP.Conduit
 import Text.HTML.DOM(parseLBS)
@@ -20,6 +19,7 @@ import Cohabr.Db.HelperTypes
 import Cohabr.Db.SqlMonad
 import Habr.Parser
 import Habr.RSS
+import Habr.Util
 
 runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
 runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = const putStrLn }
@@ -27,7 +27,7 @@ runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtL
 refetchPost :: HabrId -> IO ()
 refetchPost postId = do
   now <- zonedTimeToLocalTime <$> getZonedTime
-  postPage <- simpleHttp [i|https://habr.com/ru/post/#{getHabrId postId}/|]
+  postPage <- simpleHttp $ urlForPostId $ getHabrId postId
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
