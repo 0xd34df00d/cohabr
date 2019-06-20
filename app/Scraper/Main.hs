@@ -27,18 +27,21 @@ runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
 runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = const putStrLn }
 
 refetchPost :: HabrId -> IO ()
-refetchPost postId = do
+refetchPost habrPostId = do
   now <- zonedTimeToLocalTime <$> getZonedTime
-  postPage <- simpleHttp $ urlForPostId $ getHabrId postId
+  postPage <- simpleHttp $ urlForPostId $ getHabrId habrPostId
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
     Left errs -> hPutStr stderr $ unlines errs
     Right (post, comments) -> do
-      maybeOurVersion <- runSqlMonad $ findPostByHabrId postId
-      case maybeOurVersion of
-        Nothing -> putStrLn "new post!"
-        Just (ourPost, ourVersion) -> putStrLn "found post!"
+      maybeStoredInfo <- runSqlMonad $ getStoredPostInfo habrPostId
+      case maybeStoredInfo of
+        Nothing -> runSqlMonad $ do
+          dbId <- insertPost habrPostId post
+          insertCommentTree dbId comments
+        Just storedInfo -> runSqlMonad $
+          updatePost $ postUpdateActions storedInfo post
 
 pollRSS :: IO ()
 pollRSS = do
