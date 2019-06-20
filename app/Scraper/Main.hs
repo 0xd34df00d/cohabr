@@ -14,9 +14,11 @@ import Time.Repeatedly
 import System.IO
 
 import Database.PostgreSQL.Util
-import Cohabr.Db.Queries
+import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
+import Cohabr.Db.Updates
 import Habr.Parser
 import Habr.RSS
 import Habr.Util

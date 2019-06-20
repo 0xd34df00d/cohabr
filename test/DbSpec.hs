@@ -19,7 +19,6 @@ import Data.Tree
 import Database.Beam hiding(timestamp)
 import Database.Beam.Postgres
 
-import Cohabr.Diff
 import Cohabr.Db
 import Cohabr.Db.Conversions
 import Cohabr.Db.CommentsLoader

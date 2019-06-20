@@ -1,41 +1,39 @@
-{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, QuasiQuotes #-}
-{-# LANGUAGE RankNTypes, FlexibleContexts, GADTs #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE FlexibleContexts, GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cohabr.Db.Updates
-( UpdateField(..)
-, RawPostVersion(..)
-, ListDiff(..)
+( ListDiff(..)
 
 , PostUpdateActions(..)
 , updatePost
+, postUpdateActions
+
+, StoredPostInfo(..)
+, getStoredPostInfo
 ) where
 
+import qualified Data.HashSet as S
 import qualified Data.Text as T
 import Control.Monad
 import Control.Monad.Reader
+import Data.Hashable
 import Data.Maybe
 import Data.String.Interpolate
 import Database.Beam hiding(timestamp)
-import Database.Beam.Backend.SQL
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 import Database.Beam.Postgres.Full hiding(insert)
-import Database.Beam.Postgres.Syntax
 
 import Cohabr.Db
 import Cohabr.Db.Conversions
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
+import Cohabr.Db.UpdateField
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
-
-data UpdateField table where
-  UpdateField :: HasSqlValueSyntax PgValueSyntax a =>
-      { accessor :: forall f. table f -> Columnar f a
-      , newVal :: a
-      } -> UpdateField table
 
 data RawPostVersion = RawPostVersion
   { rawPVTitle :: T.Text
@@ -74,12 +72,6 @@ updatePost PostUpdateActions { .. } = do
     updateVersionHubs curVerId isNewVersion hubsDiff
     updateVersionTags curVerId isNewVersion tagsDiff
 
-toUpdater :: Beamable table => UpdateField table -> (forall s. table (QField s) -> QAssignment Postgres s)
-toUpdater UpdateField { .. } = \table -> accessor table <-. val_ newVal
-
-toUpdaterConcat :: Beamable table => [UpdateField table] -> (forall s. table (QField s) -> QAssignment Postgres s)
-toUpdaterConcat = foldMap toUpdater
-
 updatePostVersion :: MonadBeamInsertReturning Postgres m => PKeyId -> Maybe RawPostVersion -> m (Maybe PKeyId)
 updatePostVersion _ Nothing = pure Nothing
 updatePostVersion postId (Just RawPostVersion { .. }) =
@@ -105,7 +97,7 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                     (deleteReturning
                       (cPostsHubs cohabrDb)
                       (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
-                      (phPostVersion))      -- TODO if we can count better
+                      phPostVersion)      -- TODO if we can count better
 
 updateVersionTags :: (SqlMonad m, MonadBeam Postgres m) => PKeyId -> Bool -> ListDiff HT.Tag -> m ()
 updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionTags postVersionId allNew
@@ -120,4 +112,47 @@ updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                     (deleteReturning
                       (cPostsTags cohabrDb)
                       (\h -> ptTag h `in_` (val_ . HT.name <$> tags) &&. ptPostVersion h ==. val_ postVersionId)
-                      (ptId))
+                      ptId)
+
+data StoredPostInfo = StoredPostInfo
+  { storedPost :: Post
+  , storedCurrentVersion :: PostVersion
+  , storedPostHubs :: [HT.Hub]
+  , storedPostTags :: [HT.Tag]
+  }
+
+getStoredPostInfo :: SqlMonad m => HabrId -> m (Maybe StoredPostInfo)
+getStoredPostInfo habrId = do
+  maybePPV <- findPostByHabrId habrId
+  case maybePPV of
+    Nothing -> pure Nothing
+    Just (storedPost, storedCurrentVersion) -> do
+      let postVerId = pvId storedCurrentVersion
+      storedPostHubs <- fmap fromStoredHub <$> getPostVersionHubs postVerId
+      storedPostTags <- fmap fromStoredTag <$> getPostVersionTags postVerId
+      pure $ Just StoredPostInfo { .. }
+
+postUpdateActions :: StoredPostInfo -> HT.Post -> PostUpdateActions
+postUpdateActions StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. }
+  where
+    postId = pId storedPost
+    hubsDiff = calcDiff storedPostHubs hubs
+    tagsDiff = calcDiff storedPostTags tags
+
+    HT.PostStats { HT.votes = HT.Votes { .. }, .. } = postStats
+
+    postUpdates = catMaybes [upScorePlus, upScoreMinus, upOrigViews, upOrigViewsNearly]
+    upScorePlus = produceUpdateField storedPost pScorePlus pos
+    upScoreMinus = produceUpdateField storedPost pScoreMinus neg
+    upOrigViews = produceUpdateField storedPost pOrigViews $ HT.viewsCount views
+    upOrigViewsNearly = produceUpdateField storedPost pOrigViewsNearly $ not $ HT.isExactCount views
+
+    newPostVersion | Just title == pvTitle storedCurrentVersion &&
+                     body == pvContent storedCurrentVersion = Nothing
+                   | otherwise = Just RawPostVersion { rawPVTitle = title, rawPVText = body }
+
+calcDiff :: (Eq a, Hashable a) => [a] -> [a] -> ListDiff a
+calcDiff (S.fromList -> stored) allNew@(S.fromList -> parsed) = ListDiff { .. }
+  where
+    added = S.toList $ parsed `S.difference` stored
+    removed = S.toList $ stored `S.difference` parsed
