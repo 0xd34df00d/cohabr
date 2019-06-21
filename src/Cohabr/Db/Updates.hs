@@ -5,7 +5,6 @@
 module Cohabr.Db.Updates
 ( ListDiff(..)
 
-, PostUpdateActions(..)
 , updatePost
 , postUpdateActions
 
