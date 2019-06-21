@@ -177,8 +177,8 @@ postTests = do
         let storedFlags = sort $ fromJust . strToFlag . pfFlag <$> flags
         storedFlags `shouldBe` expectedFlags
 
-initialTree :: HT.Comments
-initialTree = buildCommentsTree
+initialComments :: [HT.Comment]
+initialComments =
   [ HT.Comment
     { HT.parentId = 0
     , HT.commentId = 10
@@ -216,6 +216,20 @@ initialTree = buildCommentsTree
     }
   ]
 
+appendedComments :: [HT.Comment]
+appendedComments = initialComments <>
+  [ HT.Comment
+    { HT.parentId = 0
+    , HT.commentId = 17
+    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a newly added comment" False $ tss !! 7
+    }
+  , HT.Comment
+    { HT.parentId = 16
+    , HT.commentId = 18
+    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a reply" False $ tss !! 8
+    }
+  ]
+
 u1, u2, u3, u4 :: HT.UserInfo
 [u1, u2, u3, u4] =
   [ HT.UserInfo ("commuser" <> n') $ HT.CustomAvatar $ HT.URL $ "http://avatars.link/" <> n'
@@ -227,7 +241,9 @@ tss :: [LocalTime]
 tss = [ LocalTime (ModifiedJulianDay 58648) $ dayFractionToTimeOfDay $ frac / 100 | frac <- [1..] ]
 
 commentTests :: Spec
-commentTests =
+commentTests = do
+  let initialTree = buildCommentsTree initialComments
+  let appendedTree = buildCommentsTree appendedComments
   describe "Inserting a comment tree" $ do
     it "inserts without error" $ do
       pid <- runSqlMonad $ pId . fst . fromJust <$> findPostByHabrId testPostId
@@ -236,6 +252,14 @@ commentTests =
     it "restores the same comments" $ do
       comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       comments `shouldBe` initialTree
+  describe "Updating with more comments" $ do
+    it "saves the new comments wihout error" $
+      runSqlMonad $ do
+        stored <- getStoredPostInfo testPostId
+        updateComments $ commentsUpdatesActions (fromJust stored) appendedTree
+    it "saves the comments fully" $ do
+      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      comments `shouldBe` appendedTree
 
 getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
