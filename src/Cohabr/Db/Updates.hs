@@ -122,7 +122,7 @@ data StoredPostInfo = StoredPostInfo
   , storedCurrentVersion :: PostVersion
   , storedPostHubs :: [HT.Hub]
   , storedPostTags :: [HT.Tag]
-  , storedCommentIds :: [(CommentHabrId, CommentPKey)]
+  , storedCommentShorts :: [(CommentHabrId, ShortCommentInfo)]
   }
 
 getStoredPostInfo :: SqlMonad m => PostHabrId -> m (Maybe StoredPostInfo)
@@ -134,7 +134,7 @@ getStoredPostInfo habrId = do
       let postVerId = pvId storedCurrentVersion
       storedPostHubs <- fmap fromStoredHub <$> getPostVersionHubs postVerId
       storedPostTags <- fmap fromStoredTag <$> getPostVersionTags postVerId
-      storedCommentIds <- getPostCommentsIds $ pId storedPost
+      storedCommentShorts <- getPostCommentsIds $ pId storedPost
       pure $ Just StoredPostInfo { .. }
 
 postUpdateActions :: StoredPostInfo -> HT.Post -> PostUpdateActions
@@ -160,16 +160,22 @@ data CommentsUpdatesActions = CommentsUpdatesActions
   { commentsPostId :: PostPKey
   , newCommentsSubtrees :: HT.Comments
   , possiblyChangedComments :: [(CommentPKey, T.Text)]
+  , updatedVotes :: [(CommentPKey, HT.Votes)]
   }
 
 updateComments :: forall m. SqlMonad m => CommentsUpdatesActions -> m ()
-updateComments CommentsUpdatesActions { .. } = runPg `inReader` do
+updateComments CommentsUpdatesActions { .. } = withTransactionPg `inReader` do
   insertCommentTree commentsPostId newCommentsSubtrees
   currentCommentsContents <- fmap HM.fromList $ getCommentsContents $ fst <$> possiblyChangedComments
   forM_ possiblyChangedComments $ \(commentId, body) ->
     case HM.lookup commentId currentCommentsContents of
       Just savedText -> when (savedText /= Just body) $ updateCommentText commentId body
       Nothing -> throwSql [i|Unable to find comment text for comment #{commentId}|]
+  forM_ updatedVotes $ \(commentId, HT.Votes { .. }) -> runUpdate $ update
+    (cComments cohabrDb)
+    (\comm -> (cScorePlus comm <-. val_ (Just pos))
+           <> (cScoreMinus comm <-. val_ (Just neg)))
+    (\comm -> cId comm ==. val_ commentId)
 
 updateCommentText :: (MonadBeam Postgres m, SqlMonad m) => CommentPKey -> T.Text -> m ()
 updateCommentText commentId body = runUpdate $ update
@@ -182,13 +188,18 @@ commentsUpdatesActions spi parsedComments = CommentsUpdatesActions
   { commentsPostId = pId $ storedPost spi
   , newCommentsSubtrees = concatMap (findSubroots $ not . (`HM.member` storedIdsMap) . HabrId . HT.commentId) parsedComments
   , possiblyChangedComments = mapMaybe makeChanged $ concatMap flatten parsedComments
+  , updatedVotes = concatMap (foldl votesUpdater []) parsedComments
   }
   where
     makeChanged comment | HT.CommentExisting { .. } <- HT.contents comment
                         , commentChanged
-                        , Just commentPKey <- HM.lookup (HabrId $ HT.commentId comment) storedIdsMap = Just (commentPKey, commentText)
+                        , Just info <- HM.lookup (HabrId $ HT.commentId comment) storedIdsMap = Just (commentPKey info, commentText)
                         | otherwise = Nothing
-    storedIdsMap = HM.fromList $ storedCommentIds spi
+    votesUpdater acc HT.Comment { .. } | HT.CommentExisting { .. } <- contents
+                                       , Just ShortCommentInfo { .. } <- HM.lookup (HabrId commentId) storedIdsMap
+                                       , (posVotes, negVotes) /= (Just $ HT.pos votes, Just $ HT.neg votes) = (commentPKey, votes) : acc
+                                       | otherwise = acc
+    storedIdsMap = HM.fromList $ storedCommentShorts spi
 
 findSubroots :: (a -> Bool) -> Tree a -> [Tree a]
 findSubroots p t@Node { .. } | p rootLabel = [t]
