@@ -3,11 +3,12 @@
 
 module Cohabr.Db.HelperTypes where
 
+import Data.Hashable
 import Database.Beam
 import Database.Beam.Backend.SQL
 
-newtype PKeyId tag = PKeyId { getPKeyId :: Int } deriving (Eq, Ord, Show, Num)
-newtype HabrId tag = HabrId { getHabrId :: Int } deriving (Eq, Ord, Show, Num)
+newtype PKeyId tag = PKeyId { getPKeyId :: Int } deriving (Eq, Ord, Show, Num, Hashable)
+newtype HabrId tag = HabrId { getHabrId :: Int } deriving (Eq, Ord, Show, Num, Hashable)
 
 deriving instance HasSqlValueSyntax sy Int => HasSqlValueSyntax sy (PKeyId tag)
 deriving instance HasSqlValueSyntax sy Int => HasSqlValueSyntax sy (HabrId tag)
