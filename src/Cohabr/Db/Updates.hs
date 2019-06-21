@@ -61,8 +61,7 @@ data PostUpdateActions = PostUpdateActions
 updatePost :: SqlMonad m => PostUpdateActions -> m ()
 updatePost PostUpdateActions { .. } = do
   ensureHubsExist $ added hubsDiff
-  env <- ask
-  withTransactionPg $ flip runReaderT env $ do
+  withTransactionPg `inReader` do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
     let isNewVersion = isJust maybeNewVersionId
     let postUpdates' = postUpdates <> catMaybes [
@@ -163,10 +162,9 @@ data CommentsUpdatesActions = CommentsUpdatesActions
   , possiblyChangedComments :: [(CommentPKey, T.Text)]
   }
 
-updateComments :: SqlMonad m => CommentsUpdatesActions -> m ()
-updateComments CommentsUpdatesActions { .. } = do
-  env <- ask
-  runPg $ flip runReaderT env $ do
+updateComments :: forall m. SqlMonad m => CommentsUpdatesActions -> m ()
+updateComments CommentsUpdatesActions { .. } =
+  runPg `inReader` do
     insertCommentTree commentsPostId newCommentsSubtrees
     currentCommentsContents <- fmap HM.fromList $ getCommentsContents $ fst <$> possiblyChangedComments
     forM_ possiblyChangedComments $ \(commentId, body) ->
