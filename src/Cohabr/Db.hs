@@ -10,8 +10,8 @@ import Database.Beam
 import Cohabr.Db.HelperTypes
 
 data PostT f = Post
-  { pId              :: Columnar f PKeyId
-  , pSourceId        :: Columnar f HabrId
+  { pId              :: Columnar f PostPKey
+  , pSourceId        :: Columnar f PostHabrId
   , pUser            :: Columnar f (Maybe Text)
   , pPublished       :: Columnar f LocalTime
   , pLink            :: Columnar f (Maybe Text)
@@ -20,29 +20,32 @@ data PostT f = Post
   , pScoreMinus      :: Columnar f (Maybe Int)
   , pOrigViews       :: Columnar f (Maybe Int)
   , pOrigViewsNearly :: Columnar f (Maybe Bool)
-  , pCurrentVersion  :: Columnar f PKeyId
-  , pAuthor          :: Columnar f (Maybe PKeyId)
+  , pCurrentVersion  :: Columnar f PostVersionPKey
+  , pAuthor          :: Columnar f (Maybe UserPKey)
   } deriving (Generic, Beamable)
 
 type Post = PostT Identity
+type PostPKey = PKeyId PostT
+type PostHabrId = HabrId PostT
 
 instance Table PostT where
-  data PrimaryKey PostT f = PostId (Columnar f PKeyId) deriving (Generic, Beamable) 
+  data PrimaryKey PostT f = PostId (Columnar f PostPKey) deriving (Generic, Beamable)
   primaryKey = PostId . pId
 
 
 data PostVersionT f = PostVersion
-  { pvId      :: Columnar f PKeyId
-  , pvPostId  :: Columnar f PKeyId
+  { pvId      :: Columnar f PostVersionPKey
+  , pvPostId  :: Columnar f PostPKey
   , pvAdded   :: Columnar f LocalTime
   , pvTitle   :: Columnar f (Maybe Text)
   , pvContent :: Columnar f Text
   } deriving (Generic, Beamable)
 
 type PostVersion = PostVersionT Identity
+type PostVersionPKey = PKeyId PostVersionT
 
 instance Table PostVersionT where
-  data PrimaryKey PostVersionT f = PostVersionId (Columnar f PKeyId) deriving (Generic, Beamable)
+  data PrimaryKey PostVersionT f = PostVersionId (Columnar f PostVersionPKey) deriving (Generic, Beamable)
   primaryKey = PostVersionId . pvId
 
 
@@ -59,14 +62,14 @@ instance Table HubT where
 
 
 data PostHubT f = PostHub
-  { phPostVersion :: Columnar f PKeyId
+  { phPostVersion :: Columnar f PostVersionPKey
   , phHub         :: Columnar f Text
   } deriving (Generic, Beamable)
 
 type PostHub = PostHubT Identity
 
 instance Table PostHubT where
-  data PrimaryKey PostHubT f = PostHubPKey (Columnar f PKeyId) (Columnar f Text) deriving (Generic, Beamable)
+  data PrimaryKey PostHubT f = PostHubPKey (Columnar f PostVersionPKey) (Columnar f Text) deriving (Generic, Beamable)
   primaryKey PostHub { .. } = PostHubPKey phPostVersion phHub
 
 
@@ -84,34 +87,35 @@ instance Table FlagT where
 
 
 data PostFlagT f = PostFlag
-  { pfPost :: Columnar f PKeyId
+  { pfPost :: Columnar f PostPKey
   , pfFlag :: Columnar f Text
   } deriving (Generic, Beamable)
 
 type PostFlag = PostFlagT Identity
 
 instance Table PostFlagT where
-  data PrimaryKey PostFlagT f = PostFlagId (Columnar f PKeyId) (Columnar f Text) deriving (Generic, Beamable)
+  data PrimaryKey PostFlagT f = PostFlagId (Columnar f PostPKey) (Columnar f Text) deriving (Generic, Beamable)
   primaryKey PostFlag { .. } = PostFlagId pfPost pfFlag
 
 data PostTagT f = PostTag
-  { ptId          :: Columnar f PKeyId
+  { ptId          :: Columnar f PostTagPKey
   , ptTag         :: Columnar f Text
-  , ptPostVersion :: Columnar f PKeyId
+  , ptPostVersion :: Columnar f PostVersionPKey
   } deriving (Generic, Beamable)
 
 type PostTag = PostTagT Identity
+type PostTagPKey = PKeyId PostTagT
 
 instance Table PostTagT where
-  data PrimaryKey PostTagT f = PostTagId (Columnar f PKeyId) deriving (Generic, Beamable)
+  data PrimaryKey PostTagT f = PostTagId (Columnar f PostTagPKey) deriving (Generic, Beamable)
   primaryKey = PostTagId . ptId
 
 
 data CommentT f = Comment
-  { cId         :: Columnar f PKeyId
-  , cSourceId   :: Columnar f HabrId
-  , cParent     :: Columnar f (Maybe PKeyId)
-  , cPostId     :: Columnar f PKeyId
+  { cId         :: Columnar f CommentPKey
+  , cSourceId   :: Columnar f CommentHabrId
+  , cParent     :: Columnar f (Maybe CommentPKey)
+  , cPostId     :: Columnar f PostPKey
   , cUser       :: Columnar f (Maybe Text)
   , cDate       :: Columnar f (Maybe LocalTime)
   , cText       :: Columnar f (Maybe Text)
@@ -119,20 +123,22 @@ data CommentT f = Comment
   , cScorePlus  :: Columnar f (Maybe Int)
   , cScoreMinus :: Columnar f (Maybe Int)
   , cDeleted    :: Columnar f Bool
-  , cAuthor     :: Columnar f (Maybe PKeyId)
+  , cAuthor     :: Columnar f (Maybe UserPKey)
   } deriving (Generic, Beamable)
 
 type Comment = CommentT Identity
+type CommentPKey = PKeyId CommentT
+type CommentHabrId = HabrId CommentT
 
 instance Table CommentT where
-  data PrimaryKey CommentT f = CommentId (Columnar f PKeyId) deriving (Generic, Beamable)
+  data PrimaryKey CommentT f = CommentId (Columnar f CommentPKey) deriving (Generic, Beamable)
   primaryKey = CommentId . cId
 
 
 data UserT f = User
-  { uId                         :: Columnar f PKeyId
+  { uId                         :: Columnar f UserPKey
   , uUsername                   :: Columnar f Text
-  , uSourceId                   :: Columnar f (Maybe HabrId)
+  , uSourceId                   :: Columnar f (Maybe UserHabrId)
   , uName                       :: Columnar f (Maybe Text)
   , uNameLastUpdated            :: Columnar f (Maybe LocalTime)
   , uSpecialization             :: Columnar f (Maybe Text)
@@ -142,30 +148,33 @@ data UserT f = User
   , uKarmaLastUpdated           :: Columnar f (Maybe LocalTime)
   , uRating                     :: Columnar f (Maybe Double)
   , uRatingLastUpdated          :: Columnar f (Maybe LocalTime)
-  , uCurrentAvatar              :: Columnar f (Maybe PKeyId)
+  , uCurrentAvatar              :: Columnar f (Maybe AvatarPKey)
   , uCurrentAvatarLastCheck     :: Columnar f (Maybe LocalTime)
   , uDeleted                    :: Columnar f Bool
   } deriving (Generic, Beamable)
 
 type User = UserT Identity
+type UserPKey = PKeyId UserT
+type UserHabrId = HabrId UserT
 
 instance Table UserT where
-  data PrimaryKey UserT f = UserId (Columnar f PKeyId) deriving (Generic, Beamable)
+  data PrimaryKey UserT f = UserId (Columnar f UserPKey) deriving (Generic, Beamable)
   primaryKey = UserId . uId
 
 
 data UserAvatarT f = UserAvatar
-  { uaId            :: Columnar f PKeyId
-  , uaUser          :: Columnar f PKeyId
+  { uaId            :: Columnar f AvatarPKey
+  , uaUser          :: Columnar f UserPKey
   , uaBigImageUrl   :: Columnar f Text
   , uaSmallImageUrl :: Columnar f Text
   , uaDiscoveredDate  :: Columnar f (Maybe LocalTime)
   } deriving (Generic, Beamable)
 
 type UserAvatar = UserAvatarT Identity
+type AvatarPKey = PKeyId UserAvatarT
 
 instance Table UserAvatarT where
-  data PrimaryKey UserAvatarT f = UserAvatarId (Columnar f PKeyId) deriving (Generic, Beamable)
+  data PrimaryKey UserAvatarT f = UserAvatarId (Columnar f AvatarPKey) deriving (Generic, Beamable)
   primaryKey = UserAvatarId . uaId
 
 

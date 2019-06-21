@@ -51,7 +51,7 @@ testPost = HT.Post
     }
   }
 
-testPostId, testPostIdUpdateContents, testPostIdUpdateBoth :: HabrId
+testPostId, testPostIdUpdateContents, testPostIdUpdateBoth :: PostHabrId
 testPostId = HabrId 1
 testPostIdUpdateContents = HabrId 2
 testPostIdUpdateBoth = HabrId 3
@@ -250,7 +250,7 @@ commentTests =
       comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       comments `shouldBe` initialTree
 
-getPostIdByHabrId :: SqlMonad m => HabrId -> m PKeyId
+getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
 
 spec :: Spec

@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes, FlexibleContexts, ScopedTypeVariables, PolyKinds #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
 
 module Cohabr.Db.CommentsLoader
@@ -19,7 +19,7 @@ import Cohabr.Db.SqlMonad
 import Cohabr.Db.Queries
 import Cohabr.Db.Utils
 
-loadComments :: SqlMonad m => HT.CommentContents -> PKeyId -> m HT.Comments
+loadComments :: SqlMonad m => HT.CommentContents -> PostPKey -> m HT.Comments
 loadComments defaultContents postId = do
   storedComments <- getPostComments postId
   let authors = nubOrd $ mapMaybe cAuthor storedComments
@@ -34,7 +34,7 @@ fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM
   where
     convSingle :: Comment -> m HT.Comment
     convSingle Comment { .. } = do
-      parentId <- getParentId cParent
+      parentId <- getParentId (cParent :: Maybe CommentPKey)
       let commentId = getHabrId cSourceId
       let avatar = fromMaybe HT.DefaultAvatar $ cAuthor >>= (`IM.lookup` avatars) . getPKeyId
       let contents

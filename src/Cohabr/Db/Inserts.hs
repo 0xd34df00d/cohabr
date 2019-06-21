@@ -30,7 +30,7 @@ import Cohabr.Db.SqlMonad
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
-insertPost :: SqlMonad m => HabrId -> HT.Post -> m PKeyId
+insertPost :: SqlMonad m => PostHabrId -> HT.Post -> m PostPKey
 insertPost habrId post@HT.Post { .. } = do
   userId <- ensureUserExists user
   ensureHubsExist hubs
@@ -62,7 +62,7 @@ makePostVersionRecord HT.Post { .. } = PostVersion
   , pvContent = val_ body
   }
 
-makePostRecord :: HabrId -> PKeyId -> PKeyId -> HT.Post -> forall s. PostT (QExpr Postgres s)
+makePostRecord :: PostHabrId -> PostVersionPKey -> UserPKey -> HT.Post -> forall s. PostT (QExpr Postgres s)
 makePostRecord habrId versionId userId HT.Post { .. } = Post
   { pId = default_
   , pSourceId = val_ habrId
@@ -80,7 +80,7 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
 
-ensureUserExists :: SqlMonad m => HT.UserInfo -> m PKeyId
+ensureUserExists :: SqlMonad m => HT.UserInfo -> m UserPKey
 ensureUserExists HT.UserInfo { .. } = runPg $ do
   maybeId <- runSelectReturningOne $ select query
   case maybeId of
@@ -121,7 +121,7 @@ makeUserRecord username = User
   , uDeleted = val_ False
   }
 
-makeAvatarRecord :: PKeyId -> HT.URL -> forall s. UserAvatarT (QExpr Postgres s)
+makeAvatarRecord :: UserPKey -> HT.URL -> forall s. UserAvatarT (QExpr Postgres s)
 makeAvatarRecord userId link = UserAvatar
   { uaId = default_
   , uaUser = val_ userId
@@ -133,7 +133,7 @@ makeAvatarRecord userId link = UserAvatar
     linkStr = T.unpack $ HT.getUrl link
     smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
 
-insertSingleComment :: SqlMonad m => PKeyId -> HT.Comment -> m PKeyId
+insertSingleComment :: SqlMonad m => PostPKey -> HT.Comment -> m CommentPKey
 insertSingleComment postId comment = do
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
@@ -149,12 +149,12 @@ insertSingleComment postId comment = do
   runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
-insertCommentTree :: SqlMonad m => PKeyId -> HT.Comments -> m ()
+insertCommentTree :: SqlMonad m => PostPKey -> HT.Comments -> m ()
 insertCommentTree postId = mapM_ $ \Node { .. } -> do
   void $ insertSingleComment postId rootLabel
   insertCommentTree postId subForest
 
-makeCommentRecord :: PKeyId -> Maybe PKeyId -> Maybe PKeyId -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
+makeCommentRecord :: PostPKey -> Maybe CommentPKey -> Maybe UserPKey -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
 makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of
   HT.CommentDeleted -> common
     { cDeleted = val_ True
@@ -187,11 +187,11 @@ makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case content
       , cAuthor = val_ Nothing
       }
 
-insertVersionHubs :: MonadBeam Postgres m => PKeyId -> [HT.Hub] -> m ()
+insertVersionHubs :: MonadBeam Postgres m => PostVersionPKey -> [HT.Hub] -> m ()
 insertVersionHubs postVersionId hubs = runInsert $ BPG.insert (cPostsHubs cohabrDb) query conflictIgnore
   where query = insertValues $ (\h -> PostHub { phPostVersion = postVersionId, phHub = makeHubId h }) <$> hubs
 
-insertVersionTags :: MonadBeam Postgres m => PKeyId -> [HT.Tag] -> m ()
+insertVersionTags :: MonadBeam Postgres m => PostVersionPKey -> [HT.Tag] -> m ()
 insertVersionTags postVersionId tags = runInsert $ BPG.insert (cPostsTags cohabrDb) (insertExpressions $ mkTag <$> tags) conflictIgnore
   where
     mkTag :: HT.Tag -> forall s. PostTagT (QExpr Postgres s)
@@ -201,7 +201,7 @@ insertVersionTags postVersionId tags = runInsert $ BPG.insert (cPostsTags cohabr
       , ptTag = val_ $ HT.name tag
       }
 
-insertPostFlags :: MonadBeam Postgres m => PKeyId -> [HT.Flag] -> m ()
+insertPostFlags :: MonadBeam Postgres m => PostPKey -> [HT.Flag] -> m ()
 insertPostFlags postId flags = runInsert $ insert (cPostsFlags cohabrDb) $ insertExpressions $ mkFlag <$> flags
   where
     mkFlag :: HT.Flag -> forall s. PostFlagT (QExpr Postgres s)
