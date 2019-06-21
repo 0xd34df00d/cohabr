@@ -24,7 +24,7 @@ import Habr.RSS
 import Habr.Util
 
 runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
-runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = const putStrLn }
+runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = const $ liftIO . putStrLn }
 
 refetchPost :: HabrId -> IO ()
 refetchPost habrPostId = do

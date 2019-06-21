@@ -19,7 +19,7 @@ data LogMessageContext = LogSqlStmt | LogDebug | LogWarn
 
 data SqlEnv = SqlEnv
   { conn :: Connection
-  , stmtLogger :: HasCallStack => LogMessageContext -> String -> IO ()
+  , stmtLogger :: forall m. (HasCallStack, MonadIO m) => LogMessageContext -> String -> m ()
   }
 
 type SqlMonad m = (MonadReader SqlEnv m, MonadIO m)
