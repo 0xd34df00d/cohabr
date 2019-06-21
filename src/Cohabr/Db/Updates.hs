@@ -134,7 +134,7 @@ getStoredPostInfo habrId = do
       let postVerId = pvId storedCurrentVersion
       storedPostHubs <- fmap fromStoredHub <$> getPostVersionHubs postVerId
       storedPostTags <- fmap fromStoredTag <$> getPostVersionTags postVerId
-      storedCommentShorts <- getPostCommentsIds $ pId storedPost
+      storedCommentShorts <- getPostCommentsShorts $ pId storedPost
       pure $ Just StoredPostInfo { .. }
 
 postUpdateActions :: StoredPostInfo -> HT.Post -> PostUpdateActions
