@@ -2,6 +2,7 @@
 
 module Cohabr.Db.Queries where
 
+import Control.Arrow
 import Data.List
 import Database.Beam
 
@@ -47,3 +48,7 @@ getPostComments postId = runPg $ runSelectReturningList $ select query
 getUserAvatar :: SqlMonad m => UserPKey -> m (Maybe UserAvatar)
 getUserAvatar userId = runPg $ runSelectReturningOne $ select query
   where query = filter_ (\ua -> uaUser ua ==. val_ userId) $ all_ $ cUserAvatars cohabrDb
+
+getPostCommentsIds :: SqlMonad m => PostPKey -> m [(CommentHabrId, CommentPKey)]
+getPostCommentsIds postId = runPg $ runSelectReturningList $ select query
+  where query = fmap (cSourceId &&& cId) $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
