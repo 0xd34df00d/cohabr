@@ -182,17 +182,17 @@ initialTree = buildCommentsTree
   [ HT.Comment
     { HT.parentId = 0
     , HT.commentId = 10
-    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a test comment" False ts1
+    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a test comment" False $ tss !! 1
     }
     , HT.Comment
       { HT.parentId = 10
       , HT.commentId = 11
-      , HT.contents = HT.CommentExisting u2 (HT.Votes 2 4) "This is another test comment" True ts2
+      , HT.contents = HT.CommentExisting u2 (HT.Votes 2 4) "This is another test comment" True $ tss !! 2
       }
       , HT.Comment
         { HT.parentId = 11
         , HT.commentId = 12
-        , HT.contents = HT.CommentExisting u3 (HT.Votes 0 1) "This is third test comment" False ts3
+        , HT.contents = HT.CommentExisting u3 (HT.Votes 0 1) "This is third test comment" False $ tss !! 3
         }
     , HT.Comment
       { HT.parentId = 10
@@ -202,29 +202,29 @@ initialTree = buildCommentsTree
       , HT.Comment
         { HT.parentId = 13
         , HT.commentId = 14
-        , HT.contents = HT.CommentExisting u4 (HT.Votes 0 1) "This is fourth test comment" False ts4
+        , HT.contents = HT.CommentExisting u4 (HT.Votes 0 1) "This is fourth test comment" False $ tss !! 4
         }
       , HT.Comment
         { HT.parentId = 13
         , HT.commentId = 15
-        , HT.contents = HT.CommentExisting u1 (HT.Votes 7 2) "This is fifth test comment" False ts5
+        , HT.contents = HT.CommentExisting u1 (HT.Votes 7 2) "This is fifth test comment" False $ tss !! 5
         }
   , HT.Comment
     { HT.parentId = 0
     , HT.commentId = 16
-    , HT.contents = HT.CommentExisting u2 (HT.Votes 9 4) "This is sixth test comment" False ts6
+    , HT.contents = HT.CommentExisting u2 (HT.Votes 9 4) "This is sixth test comment" False $ tss !! 6
     }
   ]
-  where
-    [u1, u2, u3, u4] =
-      [ HT.UserInfo ("commuser" <> n') $ HT.CustomAvatar $ HT.URL $ "http://avatars.link/" <> n'
-      | n <- [1..4]
-      , let n' = T.pack $ show (n :: Int)
-      ]
-    [ts1, ts2, ts3, ts4, ts5, ts6] =
-      [ LocalTime (ModifiedJulianDay 58648) $ dayFractionToTimeOfDay $ frac / 100
-      | frac <- [1..6]
-      ]
+
+u1, u2, u3, u4 :: HT.UserInfo
+[u1, u2, u3, u4] =
+  [ HT.UserInfo ("commuser" <> n') $ HT.CustomAvatar $ HT.URL $ "http://avatars.link/" <> n'
+  | n <- [1..4]
+  , let n' = T.pack $ show (n :: Int)
+  ]
+
+tss :: [LocalTime]
+tss = [ LocalTime (ModifiedJulianDay 58648) $ dayFractionToTimeOfDay $ frac / 100 | frac <- [1..] ]
 
 commentTests :: Spec
 commentTests =
