@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, QuasiQuotes, ViewPatterns #-}
 {-# LANGUAGE FlexibleContexts, GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
@@ -8,10 +8,14 @@ module Cohabr.Db.Updates
 , updatePost
 , postUpdateActions
 
+, updateComments
+, commentsUpdatesActions
+
 , StoredPostInfo(..)
 , getStoredPostInfo
 ) where
 
+import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as S
 import qualified Data.Text as T
 import Control.Monad
@@ -19,6 +23,7 @@ import Control.Monad.Reader
 import Data.Hashable
 import Data.Maybe
 import Data.String.Interpolate
+import Data.Tree
 import Database.Beam hiding(timestamp)
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -26,6 +31,7 @@ import Database.Beam.Postgres.Full hiding(insert)
 
 import Cohabr.Db
 import Cohabr.Db.Conversions
+import Cohabr.Db.HelperTypes
 import Cohabr.Db.Inserts
 import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
@@ -117,6 +123,7 @@ data StoredPostInfo = StoredPostInfo
   , storedCurrentVersion :: PostVersion
   , storedPostHubs :: [HT.Hub]
   , storedPostTags :: [HT.Tag]
+  , storedCommentIds :: [(CommentHabrId, CommentPKey)]
   }
 
 getStoredPostInfo :: SqlMonad m => PostHabrId -> m (Maybe StoredPostInfo)
@@ -128,6 +135,7 @@ getStoredPostInfo habrId = do
       let postVerId = pvId storedCurrentVersion
       storedPostHubs <- fmap fromStoredHub <$> getPostVersionHubs postVerId
       storedPostTags <- fmap fromStoredTag <$> getPostVersionTags postVerId
+      storedCommentIds <- getPostCommentsIds $ pId storedPost
       pure $ Just StoredPostInfo { .. }
 
 postUpdateActions :: StoredPostInfo -> HT.Post -> PostUpdateActions
@@ -148,6 +156,46 @@ postUpdateActions StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. 
     newPostVersion | Just title == pvTitle storedCurrentVersion &&
                      body == pvContent storedCurrentVersion = Nothing
                    | otherwise = Just RawPostVersion { rawPVTitle = title, rawPVText = body }
+
+data CommentsUpdatesActions = CommentsUpdatesActions
+  { commentsPostId :: PostPKey
+  , newCommentsSubtrees :: HT.Comments
+  , possiblyChangedComments :: [(CommentPKey, T.Text)]
+  }
+
+updateComments :: SqlMonad m => CommentsUpdatesActions -> m ()
+updateComments CommentsUpdatesActions { .. } = do
+  env <- ask
+  runPg $ flip runReaderT env $ do
+    insertCommentTree commentsPostId newCommentsSubtrees
+    currentCommentsContents <- fmap HM.fromList $ getCommentsContents $ fst <$> possiblyChangedComments
+    forM_ possiblyChangedComments $ \(commentId, body) ->
+      case HM.lookup commentId currentCommentsContents of
+        Just savedText -> when (savedText /= Just body) $ updateCommentText commentId body
+        Nothing -> throwSql [i|Unable to find comment text for comment #{commentId}|]
+
+updateCommentText :: (MonadBeam Postgres m, SqlMonad m) => CommentPKey -> T.Text -> m ()
+updateCommentText commentId body = runUpdate $ update
+                                    (cComments cohabrDb)
+                                    (\comm -> cText comm <-. val_ (Just body))
+                                    (\comm -> cId comm ==. val_ commentId)
+
+commentsUpdatesActions :: StoredPostInfo -> HT.Comments -> CommentsUpdatesActions
+commentsUpdatesActions spi parsedComments = CommentsUpdatesActions
+  { commentsPostId = pId $ storedPost spi
+  , newCommentsSubtrees = concatMap (findSubroots $ not . (`HM.member` storedIdsMap) . HabrId . HT.commentId) parsedComments
+  , possiblyChangedComments = mapMaybe makeChanged $ concatMap flatten parsedComments
+  }
+  where
+    makeChanged comment | HT.CommentExisting { .. } <- HT.contents comment
+                        , commentChanged
+                        , Just commentPKey <- HM.lookup (HabrId $ HT.commentId comment) storedIdsMap = Just (commentPKey, commentText)
+                        | otherwise = Nothing
+    storedIdsMap = HM.fromList $ storedCommentIds spi
+
+findSubroots :: (a -> Bool) -> Tree a -> [Tree a]
+findSubroots p t@Node { .. } | p rootLabel = [t]
+                             | otherwise = concat $ findSubroots p <$> subForest
 
 calcDiff :: (Eq a, Hashable a) => [a] -> [a] -> ListDiff a
 calcDiff (S.fromList -> stored) allNew@(S.fromList -> parsed) = ListDiff { .. }
