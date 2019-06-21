@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, RecordWildCards #-}
 
 module Cohabr.Db.Queries where
 
@@ -50,11 +50,19 @@ getUserAvatar :: SqlMonad m => UserPKey -> m (Maybe UserAvatar)
 getUserAvatar userId = runPg $ runSelectReturningOne $ select query
   where query = filter_ (\ua -> uaUser ua ==. val_ userId) $ all_ $ cUserAvatars cohabrDb
 
-getPostCommentsIds :: SqlMonad m => PostPKey -> m [(CommentHabrId, CommentPKey)]
-getPostCommentsIds postId = runPg $ runSelectReturningList $ select query
-  where query = fmap (cSourceId &&& cId) $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
+data ShortCommentInfo = ShortCommentInfo
+  { commentPKey :: CommentPKey
+  , posVotes :: Maybe Int
+  , negVotes :: Maybe Int
+  }
+
+getPostCommentsIds :: SqlMonad m => PostPKey -> m [(CommentHabrId, ShortCommentInfo)]
+getPostCommentsIds postId = fmap (fmap $ second toShortInfo) $ runPg $ runSelectReturningList $ select query
+  where
+    query = fmap toShortTuple $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
+    toShortTuple Comment { .. } = (cSourceId, (cId, cScorePlus, cScoreMinus))
+    toShortInfo (commentPKey, posVotes, negVotes) = ShortCommentInfo { .. }
 
 getCommentsContents :: SqlMonad m => [CommentPKey] -> m [(CommentPKey, Maybe T.Text)]
 getCommentsContents commentIds = runPg $ runSelectReturningList $ select query
-  where
-    query = fmap (cId &&& cText) $ filter_ (\comm -> cId comm `in_` fmap val_ commentIds) $ all_ $ cComments cohabrDb
+  where query = fmap (cId &&& cText) $ filter_ (\comm -> cId comm `in_` fmap val_ commentIds) $ all_ $ cComments cohabrDb
