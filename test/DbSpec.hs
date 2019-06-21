@@ -240,10 +240,17 @@ u1, u2, u3, u4 :: HT.UserInfo
 tss :: [LocalTime]
 tss = [ LocalTime (ModifiedJulianDay 58648) $ dayFractionToTimeOfDay $ frac / 100 | frac <- [1..] ]
 
+updateComment :: Int -> (HT.Comment -> HT.Comment) -> [HT.Comment] -> [HT.Comment]
+updateComment idx f list = prefix <> (f h : rest)
+  where (prefix, h:rest) = splitAt idx list
+
 commentTests :: Spec
 commentTests = do
   let initialTree = buildCommentsTree initialComments
-  let appendedTree = buildCommentsTree appendedComments
+  let appendedTree = buildCommentsTree $
+        updateComment 2 (\comm -> comm { HT.contents = (HT.contents comm) { HT.votes = HT.Votes 3 6 } }) $
+        updateComment 4 (\comm -> comm { HT.contents = (HT.contents comm) { HT.votes = HT.Votes 4 7 } })
+        appendedComments
   describe "Inserting a comment tree" $ do
     it "inserts without error" $ do
       pid <- runSqlMonad $ pId . fst . fromJust <$> findPostByHabrId testPostId
