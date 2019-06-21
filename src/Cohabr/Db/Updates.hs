@@ -163,14 +163,13 @@ data CommentsUpdatesActions = CommentsUpdatesActions
   }
 
 updateComments :: forall m. SqlMonad m => CommentsUpdatesActions -> m ()
-updateComments CommentsUpdatesActions { .. } =
-  runPg `inReader` do
-    insertCommentTree commentsPostId newCommentsSubtrees
-    currentCommentsContents <- fmap HM.fromList $ getCommentsContents $ fst <$> possiblyChangedComments
-    forM_ possiblyChangedComments $ \(commentId, body) ->
-      case HM.lookup commentId currentCommentsContents of
-        Just savedText -> when (savedText /= Just body) $ updateCommentText commentId body
-        Nothing -> throwSql [i|Unable to find comment text for comment #{commentId}|]
+updateComments CommentsUpdatesActions { .. } = runPg `inReader` do
+  insertCommentTree commentsPostId newCommentsSubtrees
+  currentCommentsContents <- fmap HM.fromList $ getCommentsContents $ fst <$> possiblyChangedComments
+  forM_ possiblyChangedComments $ \(commentId, body) ->
+    case HM.lookup commentId currentCommentsContents of
+      Just savedText -> when (savedText /= Just body) $ updateCommentText commentId body
+      Nothing -> throwSql [i|Unable to find comment text for comment #{commentId}|]
 
 updateCommentText :: (MonadBeam Postgres m, SqlMonad m) => CommentPKey -> T.Text -> m ()
 updateCommentText commentId body = runUpdate $ update

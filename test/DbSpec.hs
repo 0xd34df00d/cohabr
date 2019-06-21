@@ -124,10 +124,10 @@ postTests = do
       testStoredPostMatches updated testPostId
   where
     doUpdates updated habrId = do
-        Just stored <- runSqlMonad $ getStoredPostInfo habrId
-        runSqlMonad $ updatePost $ postUpdateActions stored updated
-        Just (post', _) <- runSqlMonad $ findPostByHabrId habrId
-        pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
+      Just stored <- runSqlMonad $ getStoredPostInfo habrId
+      runSqlMonad $ updatePost $ postUpdateActions stored updated
+      Just (post', _) <- runSqlMonad $ findPostByHabrId habrId
+      pure (pCurrentVersion $ storedPost stored, pCurrentVersion post')
 
     testStoredPostMatches post habrId = do
       it "finds just inserted post" $ do
