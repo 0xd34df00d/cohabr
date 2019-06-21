@@ -7,6 +7,7 @@ module Cohabr.Db.SqlMonad
 , SqlMonad
 , withTransactionPg
 , runPg
+, inReader
 ) where
 
 import qualified Database.PostgreSQL.Simple as PGS
@@ -33,3 +34,6 @@ runPg :: SqlMonad m => Pg a -> m a
 runPg pg = do
   SqlEnv { .. } <- ask
   liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
+
+inReader :: MonadReader r mr => (m a -> mr b) -> ReaderT r m a -> mr b
+inReader runner act = ask >>= \env -> runner $ runReaderT act env
