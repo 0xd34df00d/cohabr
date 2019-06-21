@@ -14,6 +14,7 @@ import Time.Repeatedly
 import System.IO
 
 import Database.PostgreSQL.Util
+import Cohabr.Db
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Queries
@@ -26,7 +27,7 @@ import Habr.Util
 runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
 runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = const $ liftIO . putStrLn }
 
-refetchPost :: HabrId -> IO ()
+refetchPost :: PostHabrId -> IO ()
 refetchPost habrPostId = do
   now <- zonedTimeToLocalTime <$> getZonedTime
   postPage <- simpleHttp $ urlForPostId $ getHabrId habrPostId
