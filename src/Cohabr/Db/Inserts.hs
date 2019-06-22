@@ -12,7 +12,6 @@ module Cohabr.Db.Inserts
 ) where
 
 import qualified Data.Text as T
-import Data.Functor
 import Data.Maybe
 import Data.String.Interpolate
 import Data.Tree
@@ -142,6 +141,10 @@ insertSingleComment postId comment = do
       isJust found ||^
         [i|Parent comment not found for post #{postId}, comment #{HT.commentId comment} parent comment #{cid}|]
       pure found
+  insertSingleCommentWParent postId comment parentCommentId
+
+insertSingleCommentWParent :: SqlMonad m => PostPKey -> HT.Comment -> Maybe CommentPKey -> m CommentPKey
+insertSingleCommentWParent postId comment parentCommentId = do
   userId <- case HT.contents comment of
     HT.CommentDeleted -> pure Nothing
     HT.CommentExisting { .. } -> Just <$> ensureUserExists user
@@ -151,8 +154,13 @@ insertSingleComment postId comment = do
 
 insertCommentTree :: SqlMonad m => PostPKey -> HT.Comments -> m ()
 insertCommentTree postId = mapM_ $ \Node { .. } -> do
-  void $ insertSingleComment postId rootLabel
-  insertCommentTree postId subForest
+  thisId <- insertSingleComment postId rootLabel
+  insertCommentTreeWParent postId thisId subForest
+
+insertCommentTreeWParent :: SqlMonad m => PostPKey -> CommentPKey -> HT.Comments -> m ()
+insertCommentTreeWParent postId parentId = mapM_ $ \Node { .. } -> do
+  thisId <- insertSingleCommentWParent postId rootLabel (Just parentId)
+  insertCommentTreeWParent postId thisId subForest
 
 makeCommentRecord :: PostPKey -> Maybe CommentPKey -> Maybe UserPKey -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
 makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of
