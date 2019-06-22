@@ -16,11 +16,9 @@ module Cohabr.Db.Updates
 ) where
 
 import qualified Data.HashMap.Strict as HM
-import qualified Data.HashSet as S
 import qualified Data.Text as T
 import Control.Monad
 import Control.Monad.Reader
-import Data.Hashable
 import Data.Maybe
 import Data.String.Interpolate
 import Data.Tree
@@ -33,6 +31,7 @@ import Cohabr.Db
 import Cohabr.Db.Conversions
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Inserts
+import Cohabr.Db.ListDiff
 import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.UpdateField
@@ -42,12 +41,6 @@ import qualified Habr.Types as HT
 data RawPostVersion = RawPostVersion
   { rawPVTitle :: T.Text
   , rawPVText :: T.Text
-  } deriving (Eq, Ord, Show)
-
-data ListDiff a = ListDiff
-  { added :: [a]
-  , removed :: [a]
-  , allNew :: [a]
   } deriving (Eq, Ord, Show)
 
 data PostUpdateActions = PostUpdateActions
@@ -204,9 +197,3 @@ commentsUpdatesActions spi parsedComments = CommentsUpdatesActions
 findSubroots :: (a -> Bool) -> Tree a -> [Tree a]
 findSubroots p t@Node { .. } | p rootLabel = [t]
                              | otherwise = concat $ findSubroots p <$> subForest
-
-calcDiff :: (Eq a, Hashable a) => [a] -> [a] -> ListDiff a
-calcDiff (S.fromList -> stored) allNew@(S.fromList -> parsed) = ListDiff { .. }
-  where
-    added = S.toList $ parsed `S.difference` stored
-    removed = S.toList $ stored `S.difference` parsed
