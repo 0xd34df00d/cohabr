@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
+import Control.Exception
 import Data.Proxy
 import GHC.TypeLits
 import Lens.Micro
@@ -84,6 +85,12 @@ newMetricsStore srv = do
           pure (newTracker, state & trackerMap .~ M.insert metricDyn newTracker tMap)
       putMVar mvar tracker
       pure state'
+
+withMetricsStore :: Server -> (MetricsStore -> IO a) -> IO a
+withMetricsStore srv f = bracket
+  (newMetricsStore srv)
+  snd
+  (f . fst)
 
 class Typeable tracker => Storable tracker where
   trackerMap :: Lens' MetricsState (M.Map DynOrd tracker)
