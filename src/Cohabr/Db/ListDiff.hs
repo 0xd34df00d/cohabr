@@ -3,6 +3,7 @@
 module Cohabr.Db.ListDiff
 ( ListDiff(..)
 , calcDiff
+, isNullDiff
 ) where
 
 import qualified Data.HashSet as S
@@ -19,3 +20,6 @@ calcDiff (S.fromList -> stored) allNew@(S.fromList -> parsed) = ListDiff { .. }
   where
     added = S.toList $ parsed `S.difference` stored
     removed = S.toList $ stored `S.difference` parsed
+
+isNullDiff :: ListDiff a -> Bool
+isNullDiff ListDiff { .. } = null added && null removed

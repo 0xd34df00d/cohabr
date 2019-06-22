@@ -51,8 +51,14 @@ data PostUpdateActions = PostUpdateActions
   , newPostVersion :: Maybe RawPostVersion
   }
 
+isNullPostUpdate :: PostUpdateActions -> Bool
+isNullPostUpdate PostUpdateActions { .. } = null postUpdates
+                                         && isNullDiff hubsDiff && isNullDiff tagsDiff
+                                         && isNothing newPostVersion
+
 updatePost :: SqlMonad m => PostUpdateActions -> m ()
-updatePost PostUpdateActions { .. } = do
+updatePost pua@PostUpdateActions { .. } | isNullPostUpdate pua = pure ()
+                                        | otherwise = do
   ensureHubsExist $ added hubsDiff
   withTransactionPg `inReader` do
     maybeNewVersionId <- updatePostVersion postId newPostVersion
