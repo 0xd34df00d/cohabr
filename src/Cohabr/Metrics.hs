@@ -10,7 +10,6 @@ import qualified Data.Text as T
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
-import Data.Functor
 import Data.Proxy
 import GHC.TypeLits
 import Lens.Micro
@@ -58,11 +57,11 @@ data MetricRequest where
 
 newtype MetricsStore = MetricsStore { mReqQueue :: TQueue MetricRequest }
 
-newMetricsStore :: Server -> IO MetricsStore
+newMetricsStore :: Server -> IO (MetricsStore, IO ())
 newMetricsStore srv = do
   queue <- newTQueueIO
-  void $ forkIO $ act queue $ MetricsState srv mempty mempty
-  pure $ MetricsStore queue
+  threadId <- forkIO $ act queue $ MetricsState srv mempty mempty
+  pure (MetricsStore queue, killThread threadId)
   where
     act queue state = do
       req <- atomically (readTQueue queue)
