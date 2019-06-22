@@ -3,7 +3,13 @@
 {-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Cohabr.Metrics where
+module Cohabr.Metrics
+( MetricsStore
+, newMetricsStore
+, withMetricsStore
+, getMetric
+, Metric(..)
+) where
 
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
