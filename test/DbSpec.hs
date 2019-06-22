@@ -217,18 +217,21 @@ initialComments =
   ]
 
 appendedComments :: [HT.Comment]
-appendedComments = initialComments <>
-  [ HT.Comment
-    { HT.parentId = 0
-    , HT.commentId = 17
-    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a newly added comment" False $ tss !! 7
-    }
-  , HT.Comment
-    { HT.parentId = 16
-    , HT.commentId = 18
-    , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a reply" False $ tss !! 8
-    }
-  ]
+appendedComments =
+  updateComment 2 (\comm -> comm { HT.contents = (HT.contents comm) { HT.votes = HT.Votes 3 6 } }) $
+  updateComment 4 (\comm -> comm { HT.contents = (HT.contents comm) { HT.votes = HT.Votes 4 7 } }) $
+    initialComments <>
+    [ HT.Comment
+      { HT.parentId = 0
+      , HT.commentId = 17
+      , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a newly added comment" False $ tss !! 7
+      }
+    , HT.Comment
+      { HT.parentId = 16
+      , HT.commentId = 18
+      , HT.contents = HT.CommentExisting u1 (HT.Votes 5 3) "This is a reply" False $ tss !! 8
+      }
+    ]
 
 u1, u2, u3, u4 :: HT.UserInfo
 [u1, u2, u3, u4] =
@@ -247,9 +250,9 @@ updateComment idx f list = prefix <> (f h : rest)
 commentTests :: Spec
 commentTests = do
   let initialTree = buildCommentsTree initialComments
-  let appendedTree = buildCommentsTree $
-        updateComment 2 (\comm -> comm { HT.contents = (HT.contents comm) { HT.votes = HT.Votes 3 6 } }) $
-        updateComment 4 (\comm -> comm { HT.contents = (HT.contents comm) { HT.votes = HT.Votes 4 7 } })
+  let appendedTree = buildCommentsTree appendedComments
+  let changedTree = buildCommentsTree $
+        updateComment 2 (\comm -> comm { HT.contents = (HT.contents comm) { HT.commentChanged = True, HT.commentText = "This is a changed body" } })
         appendedComments
   describe "Inserting a comment tree" $ do
     it "inserts without error" $ do
@@ -267,6 +270,14 @@ commentTests = do
     it "saves the comments fully" $ do
       comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       comments `shouldBe` appendedTree
+  describe "With changing the body" $ do
+    it "saves the new comments wihout error" $
+      runSqlMonad $ do
+        stored <- getStoredPostInfo testPostId
+        updateComments $ commentsUpdatesActions (fromJust stored) changedTree
+    it "saves the comments fully" $ do
+      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      comments `shouldBe` changedTree
 
 getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
