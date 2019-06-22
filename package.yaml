@@ -27,6 +27,8 @@ dependencies:
 - containers
 - dom-selector
 - either
+- ekg
+- ekg-core
 - extra
 - feed
 - filepath
@@ -37,6 +39,7 @@ dependencies:
 - microlens-th
 - mtl
 - postgresql-simple
+- stm
 - text
 - time
 - tuple
