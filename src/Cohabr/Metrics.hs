@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds, RankNTypes, GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ConstraintKinds, FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Cohabr.Metrics where
@@ -11,6 +11,7 @@ import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
 import Data.Functor
+import Data.Proxy
 import GHC.TypeLits
 import Lens.Micro
 import Lens.Micro.TH
@@ -67,13 +68,20 @@ newMetricsStore srv = do
       req <- atomically (readTQueue queue)
       state' <- (\(MetricRequest metric mvar) -> handleReq state metric mvar) req
       act queue state'
+
+    handleReq :: forall tracker name. (Storable tracker, KnownSymbol name)
+              => MetricsState
+              -> Metric tracker name
+              -> MVar tracker
+              -> IO MetricsState
     handleReq state metric mvar = do
       let tMap = state^.trackerMap
       let metricDyn = toDyn metric
       (tracker, state') <- case M.lookup metricDyn tMap of
         Just existing -> pure (existing, state)
         Nothing -> do
-          newTracker <- createTracker undefined $ serverMetricStore $ state^.server
+          let trackerName = symbolVal (Proxy :: Proxy name)
+          newTracker <- createTracker (T.pack trackerName) $ serverMetricStore $ state^.server
           pure (newTracker, state & trackerMap .~ M.insert metricDyn newTracker tMap)
       putMVar mvar tracker
       pure state'
