@@ -157,10 +157,11 @@ parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftE
 parseUser :: MonadError ParseError m => Cursor -> m UserInfo
 parseUser cur = do
   username <- cur @>. [jq| span.user-info__nickname |]
-  avatar <- liftEither $ maybeToRight ["unable to parse image"] $ msum [userImg, defaultImg]
+  avatar <- liftEither $ maybeToRight ["unable to parse image"] $ msum [userImg, defaultImg, defaultImgMini]
   pure UserInfo { .. }
   where
     defaultImg = rightToMaybe (cur @> [jq|svg.default-image|]) $> DefaultAvatar
+    defaultImgMini = rightToMaybe (cur @> [jq|span.default-image_mini|]) $> DefaultAvatar
     userImg = CustomAvatar . URL <$> rightToMaybe (cur @> [jq|img.user-info__image-pic|] @@^ "src")
 
 parseVotes :: MonadError ParseError m => Cursor -> m Votes
