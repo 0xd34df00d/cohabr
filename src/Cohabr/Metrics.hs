@@ -57,7 +57,7 @@ data MetricsState = MetricsState
 $(makeLenses 'MetricsState)
 
 data MetricRequest where
-  MetricRequest :: forall tracker name. (Storable tracker, KnownSymbol name)
+  MetricRequest :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
                 => Metric tracker name
                 -> MVar tracker
                 -> MetricRequest
@@ -75,7 +75,7 @@ newMetricsStore srv = do
       state' <- (\(MetricRequest metric mvar) -> handleReq state metric mvar) req
       act queue state'
 
-    handleReq :: forall tracker name. (Storable tracker, KnownSymbol name)
+    handleReq :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
               => MetricsState
               -> Metric tracker name
               -> MVar tracker
@@ -98,14 +98,14 @@ withMetricsStore srv f = bracket
   snd
   (f . fst)
 
-class Typeable tracker => Storable tracker where
+class Typeable tracker => TrackerLike tracker where
   trackerMap :: Lens' MetricsState (M.Map DynOrd tracker)
   createTracker :: T.Text -> Store -> IO tracker
 
-instance Storable Counter where
+instance TrackerLike Counter where
   trackerMap = counters
   createTracker = createCounter
-instance Storable Distribution where
+instance TrackerLike Distribution where
   trackerMap = distributions
   createTracker = createDistribution
 
@@ -118,7 +118,7 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
-getMetric :: forall tracker name. (Storable tracker, KnownSymbol name)
+getMetric :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
           => MetricsStore
           -> Metric tracker name
           -> IO tracker
