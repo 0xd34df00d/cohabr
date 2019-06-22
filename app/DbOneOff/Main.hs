@@ -13,7 +13,7 @@ import Database.PostgreSQL.Util
 import Cohabr.Db
 import Cohabr.Db.HelperTypes
 
-handleUsers :: PGS.Connection -> [(PKeyId, T.Text)] -> IO ()
+handleUsers :: PGS.Connection -> [(PKeyId UserT, T.Text)] -> IO ()
 handleUsers conn usersList = do
   print $ length usersDups
   mapM_ (reduceDup conn) usersDups
@@ -21,7 +21,7 @@ handleUsers conn usersList = do
     usersDups = filter ((> 1) . length) $ HM.elems $
                  HM.fromListWith (<>) [ (uname, [uid]) | (uid, uname) <- usersList ]
 
-reduceDup :: PGS.Connection -> [PKeyId] -> IO ()
+reduceDup :: PGS.Connection -> [PKeyId UserT] -> IO ()
 reduceDup _ [] = pure ()
 reduceDup conn (keepId : removeIds) = PGS.withTransaction conn $ runBeamPostgresDebug print conn $ do
   runUpdate $ update (cPosts cohabrDb)
@@ -33,7 +33,7 @@ reduceDup conn (keepId : removeIds) = PGS.withTransaction conn $ runBeamPostgres
   runDelete $ delete (cUsers cohabrDb)
     (\user -> uId user `in_` (val_ <$> removeIds))
   where
-    removeIdsSql :: forall s. [QGenExpr QValueContext Postgres s (Maybe PKeyId)]
+    removeIdsSql :: forall s. [QGenExpr QValueContext Postgres s (Maybe (PKeyId UserT))]
     removeIdsSql = val_ . Just <$> removeIds
 
 compressUsers :: IO ()
