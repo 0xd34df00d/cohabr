@@ -8,8 +8,14 @@ module Cohabr.Metrics
 , newMetricsStore
 , withMetricsStore
 , getMetric
+
 , Metric(..)
 , track
+, KnownSymbol
+, symbolVal
+
+, Counter
+, Distribution
 ) where
 
 import qualified Data.Map.Strict as M
