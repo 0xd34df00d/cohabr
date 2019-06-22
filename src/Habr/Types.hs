@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE DeriveGeneric, DeriveDataTypeable, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE Strict #-}
 
 module Habr.Types where
 
