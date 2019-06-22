@@ -180,7 +180,7 @@ updateComments CommentsUpdatesActions { .. } = withTransactionPg `inReader` do
 updateCommentText :: (MonadBeam Postgres m, SqlMonad m) => CommentPKey -> T.Text -> m ()
 updateCommentText commentId body = runUpdate $ update
                                     (cComments cohabrDb)
-                                    (\comm -> cText comm <-. val_ (Just body))
+                                    (\comm -> (cText comm <-. val_ (Just body)) <> (cChanged comm <-. val_ True))
                                     (\comm -> cId comm ==. val_ commentId)
 
 commentsUpdatesActions :: StoredPostInfo -> HT.Comments -> CommentsUpdatesActions
