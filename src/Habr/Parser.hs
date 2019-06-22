@@ -112,8 +112,10 @@ parsePostStats cur = do
   where parseViews t = PostViews True <$> readInt t <|> PostViews False <$> readApproxInt (T.unpack t)
 
 readApproxInt :: MonadError ParseError m => String -> m Int
-readApproxInt str | (ts, [',', hs, 'k']) <- break (== ',') str = pure $ read ts * 1000 + read (hs : "00")
+readApproxInt str | (ts, [',', hs, 'k']) <- commaBreak = pure $ read ts * 1000 + read (hs : "00")
+                  | (ts, []) <- commaBreak = pure $ read (init ts) * 1000
                   | otherwise = throwParseError [i|#{str} is not in approximate format|]
+  where commaBreak = break (== ',') str
 
 parseComments :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Comments
 parseComments root = buildCommentsTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
