@@ -87,6 +87,10 @@ postTests = do
       runSqlMonad (insertPost testPostIdUpdateBoth testPost) `shouldNotReturn` PKeyId 1
   describe "Retrieving just inserted post" $
     testStoredPostMatches testPost testPostId
+  describe "Updating post with itself" $
+    it "inserts the update without errors keeping the version" $ do
+      (oldVerId, newVerId) <- doUpdates testPost testPostId
+      oldVerId `shouldBe` newVerId
   describe "Updating post with new metainformation" $ do
     let updated = changePostMeta testPost
     it "inserts the update without errors keeping the version" $ do
