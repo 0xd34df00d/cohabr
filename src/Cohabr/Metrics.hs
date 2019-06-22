@@ -88,14 +88,13 @@ newMetricsStore srv = do
               -> MVar tracker
               -> IO MetricsState
     handleReq state metric mvar = do
-      let tMap = state^.trackerMap
       let metricDyn = toDyn metric
-      (tracker, state') <- case M.lookup metricDyn tMap of
+      (tracker, state') <- case M.lookup metricDyn $ state ^.trackerMap of
         Just existing -> pure (existing, state)
         Nothing -> do
           let trackerName = symbolVal (Proxy :: Proxy name)
           newTracker <- createTracker (T.pack trackerName) $ serverMetricStore $ state^.server
-          pure (newTracker, state & trackerMap .~ M.insert metricDyn newTracker tMap)
+          pure (newTracker, state & trackerMap %~ M.insert metricDyn newTracker)
       putMVar mvar tracker
       pure state'
 
