@@ -127,9 +127,12 @@ data Metric tracker name where
   PageParseTime               :: Metric Distribution "page.parse_ms"
   PageFetchTime               :: Metric Distribution "page.fetch_ms"
   NumPagesFetched             :: Metric Counter      "page.fetches_count"
+
   StoredPostInfoRetrievalTime :: Metric Distribution "db.fetch.storedpost_ms"
+
   PostInsertTime              :: Metric Distribution "db.insert.post_ms"
   PerCommentInsertTime        :: Metric Distribution "db.insert.percomment_ms"
+  TotalInsertTime             :: Metric Distribution "db.insert.total_ms"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
