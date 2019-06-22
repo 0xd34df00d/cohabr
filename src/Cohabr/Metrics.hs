@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, RankNTypes, GADTs #-}
+{-# LANGUAGE DataKinds, RankNTypes, GADTs, TypeFamilies #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -9,6 +9,7 @@ module Cohabr.Metrics
 , withMetricsStore
 , getMetric
 , Metric(..)
+, track
 ) where
 
 import qualified Data.Map.Strict as M
@@ -23,8 +24,8 @@ import Lens.Micro
 import Lens.Micro.TH
 import System.Remote.Monitoring
 import System.Metrics
-import System.Metrics.Counter
-import System.Metrics.Distribution
+import System.Metrics.Counter as TC
+import System.Metrics.Distribution as TD
 import Type.Reflection
 
 data Dyn ctx where
@@ -99,13 +100,20 @@ withMetricsStore srv f = bracket
   (f . fst)
 
 class Typeable tracker => TrackerLike tracker where
+  type TrackAction tracker :: *
+  track :: KnownSymbol name => MetricsStore -> Metric tracker name -> TrackAction tracker
   trackerMap :: Lens' MetricsState (M.Map DynOrd tracker)
   createTracker :: T.Text -> Store -> IO tracker
 
 instance TrackerLike Counter where
+  type TrackAction Counter = IO ()
+  track store metric = getMetric store metric >>= TC.inc
   trackerMap = counters
   createTracker = createCounter
+
 instance TrackerLike Distribution where
+  type TrackAction Distribution = Double -> IO ()
+  track store metric val = getMetric store metric >>= flip TD.add val
   trackerMap = distributions
   createTracker = createDistribution
 
