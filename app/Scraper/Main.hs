@@ -47,18 +47,21 @@ time act = do
   let !delta = end - start
   pure (delta, result)
 
-timed :: forall a m name. (MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
+trackLogging :: forall m name. (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Double -> m ()
+trackLogging metric t = do
+  writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> " in " <> show t
+  track metric t
+
+timed :: (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
 timed metric act = do
   (t, res) <- time act
-  liftIO $ putStrLn $ "Done " <> symbolVal (Proxy :: Proxy name) <> " in " <> show (t * 1000)
-  track metric $ t * 1000
+  trackLogging metric $ t * 1000
   pure res
 
-timedAvg :: forall a m name. (MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
+timedAvg :: (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
 timedAvg metric len act = do
   (t, res) <- time act
-  liftIO $ putStrLn $ "Done " <> symbolVal (Proxy :: Proxy name) <> "/" <> show len <> " in " <> show (t * 1000)
-  track metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
+  trackLogging metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
   pure res
 
 refetchPost :: MetricsStore -> PostHabrId -> IO ()
