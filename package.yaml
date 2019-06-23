@@ -29,6 +29,7 @@ dependencies:
 - either
 - ekg
 - ekg-core
+- exceptions
 - extra
 - feed
 - filepath
