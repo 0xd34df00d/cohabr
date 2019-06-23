@@ -6,12 +6,17 @@ module Main where
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as PGS
+import Control.Exception
 import Database.Beam
 import Database.Beam.Postgres
 
-import Database.PostgreSQL.Util
 import Cohabr.Db
 import Cohabr.Db.HelperTypes
+
+withConnection :: (PGS.Connection -> IO c) -> IO c
+withConnection = bracket
+  (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
+  PGS.close
 
 handleUsers :: PGS.Connection -> [(PKeyId UserT, T.Text)] -> IO ()
 handleUsers conn usersList = do
