@@ -78,10 +78,10 @@ refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ fli
           writeLog LogDebug "inserting new one"
           dbId <- timed PostInsertTime $ insertPost habrPostId post
           timedAvg PerCommentInsertTime (length comments) $ insertCommentTree dbId comments
-        Just storedInfo -> do
+        Just storedInfo -> timed TotalUpdateTime $ do
           writeLog LogDebug "updating"
-          updatePost $ postUpdateActions storedInfo post
-          updateComments $ commentsUpdatesActions storedInfo comments
+          timed PostUpdateTime $ updatePost $ postUpdateActions storedInfo post
+          timedAvg PerCommentUpdateTime (length comments) $ updateComments $ commentsUpdatesActions storedInfo comments
   writeLog LogDebug $ "done processing " <> show habrPostId
   where
     selector (HttpExceptionRequest _ (StatusCodeException resp contents))

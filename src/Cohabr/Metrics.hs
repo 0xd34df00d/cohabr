@@ -140,6 +140,10 @@ data Metric tracker name where
   PostInsertTime              :: Metric Distribution "db.insert.post_ms"
   PerCommentInsertTime        :: Metric Distribution "db.insert.percomment_ms"
   TotalInsertTime             :: Metric Distribution "db.insert.total_ms"
+
+  PostUpdateTime              :: Metric Distribution "db.update.post_ms"
+  PerCommentUpdateTime        :: Metric Distribution "db.update.percomment_ms"
+  TotalUpdateTime             :: Metric Distribution "db.update.total_ms"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
