@@ -3,19 +3,22 @@
 
 module Main where
 
+import qualified Data.ByteString.Char8 as BS
 import Control.Concurrent
 import Control.Concurrent.Async
+import Control.Exception
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
 import Data.Proxy
+import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
 import Network.HTTP.Conduit hiding(Proxy)
+import Network.HTTP.Types.Status(statusCode)
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument)
 import Time.Repeatedly
 import System.Environment
-import System.IO
 import System.Remote.Monitoring
 
 import Database.PostgreSQL.Util
@@ -44,44 +47,52 @@ time act = do
   let !delta = end - start
   pure (delta, result)
 
-timed :: forall a m name. (MonadIO m, KnownSymbol name) => MetricsStore -> Metric Distribution name -> m a -> m a
-timed store metric act = do
+timed :: forall a m name. (MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
+timed metric act = do
   (t, res) <- time act
   liftIO $ putStrLn $ "Done " <> symbolVal (Proxy :: Proxy name) <> " in " <> show (t * 1000)
-  liftIO $ track store metric $ t * 1000
+  track metric $ t * 1000
   pure res
 
-timedAvg :: forall a m name. (MonadIO m, KnownSymbol name) => MetricsStore -> Metric Distribution name -> Int -> m a -> m a
-timedAvg store metric len act = do
+timedAvg :: forall a m name. (MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
+timedAvg metric len act = do
   (t, res) <- time act
   liftIO $ putStrLn $ "Done " <> symbolVal (Proxy :: Proxy name) <> "/" <> show len <> " in " <> show (t * 1000)
-  liftIO $ track store metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
+  track metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
   pure res
 
 refetchPost :: MetricsStore -> PostHabrId -> IO ()
-refetchPost metrics habrPostId = do
-  putStrLn $ "fetching post " <> show habrPostId
-  now <- zonedTimeToLocalTime <$> getZonedTime
-  postPage <- timed metrics PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
+refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ flip runMetricsT metrics $ do
+  logger <- reader stmtLogger
+  logger LogDebug $ "fetching post " <> show habrPostId
+  now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
+  postPage <- timed PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
-    Left errs -> do
-      hPutStr stderr $ unlines errs
-      error $ show errs
+    Left errs -> logger LogError $ unlines errs
     Right (post, comments) -> do
-      putStrLn "fetched!"
-      maybeStoredInfo <- timed metrics StoredPostInfoRetrievalTime $ runSqlMonad $ getStoredPostInfo habrPostId
+      logger LogDebug "fetched!"
+      maybeStoredInfo <- timed StoredPostInfoRetrievalTime $ getStoredPostInfo habrPostId
       case maybeStoredInfo of
-        Nothing -> timed metrics TotalInsertTime $ runSqlMonad $ do
-          liftIO $ putStrLn "inserting new one"
-          dbId <- timed metrics PostInsertTime $ insertPost habrPostId post
-          timedAvg metrics PerCommentInsertTime (length comments) $ insertCommentTree dbId comments
-        Just storedInfo -> runSqlMonad $ do
-          liftIO $ putStrLn "updating"
+        Nothing -> timed TotalInsertTime $ do
+          logger LogDebug "inserting new one"
+          dbId <- timed PostInsertTime $ insertPost habrPostId post
+          timedAvg PerCommentInsertTime (length comments) $ insertCommentTree dbId comments
+        Just storedInfo -> do
+          logger LogDebug "updating"
           updatePost $ postUpdateActions storedInfo post
           updateComments $ commentsUpdatesActions storedInfo comments
-  putStrLn $ "done processing " <> show habrPostId
+  logger LogDebug $ "done processing " <> show habrPostId
+  where
+    selector (HttpExceptionRequest _ (StatusCodeException resp contents))
+      | statusCode (responseStatus resp) == 403
+      , "<a href=\"https://habr.com/ru/users/" `BS.isInfixOf` contents = Just ()
+    selector _ = Nothing
+
+    handler _ = do
+      putStrLn "Post is unavailable"
+      runMetricsT (track DeniedPagesCount) metrics
 
 pollRSS :: IO ()
 pollRSS = do
