@@ -63,27 +63,26 @@ timedAvg metric len act = do
 
 refetchPost :: MetricsStore -> PostHabrId -> IO ()
 refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ flip runMetricsT metrics $ do
-  logger <- reader stmtLogger
-  logger LogDebug $ "fetching post " <> show habrPostId
+  writeLog LogDebug $ "fetching post " <> show habrPostId
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
   postPage <- timed PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
-    Left errs -> logger LogError $ unlines errs
+    Left errs -> writeLog LogError $ unlines errs
     Right (post, comments) -> do
-      logger LogDebug "fetched!"
+      writeLog LogDebug "fetched!"
       maybeStoredInfo <- timed StoredPostInfoRetrievalTime $ getStoredPostInfo habrPostId
       case maybeStoredInfo of
         Nothing -> timed TotalInsertTime $ do
-          logger LogDebug "inserting new one"
+          writeLog LogDebug "inserting new one"
           dbId <- timed PostInsertTime $ insertPost habrPostId post
           timedAvg PerCommentInsertTime (length comments) $ insertCommentTree dbId comments
         Just storedInfo -> do
-          logger LogDebug "updating"
+          writeLog LogDebug "updating"
           updatePost $ postUpdateActions storedInfo post
           updateComments $ commentsUpdatesActions storedInfo comments
-  logger LogDebug $ "done processing " <> show habrPostId
+  writeLog LogDebug $ "done processing " <> show habrPostId
   where
     selector (HttpExceptionRequest _ (StatusCodeException resp contents))
       | statusCode (responseStatus resp) == 403
