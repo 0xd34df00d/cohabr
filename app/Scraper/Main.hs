@@ -7,7 +7,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Concurrent
 import Control.Concurrent.Async
-import Control.Exception
+import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.List
@@ -39,7 +39,7 @@ withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
   PGS.close
 
-runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
+runSqlMonad :: (forall m. (SqlMonad m, MonadCatch m) => m a) -> IO a
 runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = logger }
   where
     logger LogSqlStmt _ = pure ()
@@ -71,7 +71,7 @@ timedAvg metric len act = do
   pure res
 
 refetchPost :: MetricsStore -> PostHabrId -> IO ()
-refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ flip runMetricsT metrics $ do
+refetchPost metrics habrPostId = runSqlMonad $ flip runMetricsT metrics $ handleJust selector handler $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
   postPage <- timed PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
@@ -100,8 +100,8 @@ refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ fli
     selector _ = Nothing
 
     handler _ = do
-      putStrLn "Post is unavailable"
-      runMetricsT (track DeniedPagesCount) metrics
+      writeLog LogError $ "Post is unavailable: " <> show habrPostId
+      track DeniedPagesCount
 
 pollRSS :: IO ()
 pollRSS = do
