@@ -9,6 +9,7 @@ import Control.Concurrent.Async
 import Control.Exception
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.List
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
 import Data.Proxy
@@ -75,6 +76,7 @@ refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ fli
     Left errs -> writeLog LogError $ unlines errs
     Right (post, comments) -> do
       writeLog LogDebug "fetched!"
+      trackLogging FetchedCommentsCount $ genericLength comments
       maybeStoredInfo <- timed StoredPostInfoRetrievalTime $ getStoredPostInfo habrPostId
       case maybeStoredInfo of
         Nothing -> timed TotalInsertTime $ do
