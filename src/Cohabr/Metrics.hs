@@ -71,8 +71,8 @@ data MetricsState = MetricsState
 $(makeLenses 'MetricsState)
 
 data MetricRequest where
-  MetricRequest :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
-                => Metric tracker name
+  MetricRequest :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
+                => metric tracker name
                 -> MVar tracker
                 -> MetricRequest
 
@@ -89,9 +89,9 @@ newMetricsStore srv = do
       state' <- (\(MetricRequest metric mvar) -> handleReq state metric mvar) req
       act queue state'
 
-    handleReq :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
+    handleReq :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
               => MetricsState
-              -> Metric tracker name
+              -> metric tracker name
               -> MVar tracker
               -> IO MetricsState
     handleReq state metric mvar = do
@@ -113,7 +113,7 @@ withMetricsStore srv f = bracket
 
 class Typeable tracker => TrackerLike tracker where
   type TrackAction tracker (m :: * -> *) = r | r -> m
-  track :: (MonadMetrics m, KnownSymbol name) => Metric tracker name -> TrackAction tracker m
+  track :: (MonadMetrics m, KnownSymbol name, Typeable metric, Ord (metric tracker name)) => metric tracker name -> TrackAction tracker m
   trackerMap :: Lens' MetricsState (M.Map DynOrd tracker)
   createTracker :: T.Text -> Store -> IO tracker
 
@@ -133,6 +133,7 @@ data Metric tracker name where
   PageParseTime               :: Metric Distribution "page.parse_ms"
   PageFetchTime               :: Metric Distribution "page.fetch_ms"
   NumPagesFetched             :: Metric Counter      "page.fetches_count"
+  DeniedPagesCount            :: Metric Counter      "page.denied_count"
 
   StoredPostInfoRetrievalTime :: Metric Distribution "db.fetch.storedpost_ms"
 
@@ -144,9 +145,9 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
-getMetricStore :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
+getMetricStore :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
                => MetricsStore
-               -> Metric tracker name
+               -> metric tracker name
                -> IO tracker
 getMetricStore store metric = do
   mvar <- newEmptyMVar
@@ -154,8 +155,8 @@ getMetricStore store metric = do
   takeMVar mvar
 
 class MonadIO m => MonadMetrics m where
-  getMetric :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
-            => Metric tracker name -> m tracker
+  getMetric :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
+            => metric tracker name -> m tracker
 
 newtype MetricsT (m :: k -> *) (a :: k) = MetricsT { runMetricsT :: MetricsStore -> m a }
 type Metrics = MetricsT Identity
