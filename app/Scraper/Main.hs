@@ -73,7 +73,7 @@ refetchPost metrics habrPostId = handleJust selector handler $ runSqlMonad $ fli
   let root = fromDocument $ parseLBS postPage
   let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
-    Left errs -> writeLog LogError $ unlines errs
+    Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
       writeLog LogDebug "fetched!"
       trackLogging FetchedCommentsCount $ genericLength comments
