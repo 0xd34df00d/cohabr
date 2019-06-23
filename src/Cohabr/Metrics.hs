@@ -24,13 +24,13 @@ module Cohabr.Metrics
 
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
+import Control.Monad.Catch
 import Control.Monad.Identity
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
-import Control.Exception
 import Data.Proxy
 import GHC.TypeLits
 import Lens.Micro
@@ -191,3 +191,9 @@ instance MonadReader r m => MonadReader r (MetricsT m) where
   ask = MetricsT $ const ask
   reader f = MetricsT $ const $ reader f
   local m (MetricsT rFun) = MetricsT $ local m . rFun
+
+instance MonadThrow m => MonadThrow (MetricsT m) where
+  throwM ex = MetricsT $ const $ throwM ex
+
+instance MonadCatch m => MonadCatch (MetricsT m) where
+  catch (MetricsT act) handler = MetricsT $ \store -> catch (act store) $ \ex -> runMetricsT (handler ex) store
