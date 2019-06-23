@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables, OverloadedStrings, BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables, OverloadedStrings, BangPatterns, RecordWildCards #-}
 
 module Main where
 
@@ -17,10 +17,10 @@ import Data.Proxy
 import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
 import Network.HTTP.Conduit hiding(Proxy)
 import Network.HTTP.Types.Status(statusCode)
+import Options.Applicative
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument)
 import Time.Repeatedly
-import System.Environment
 import System.Remote.Monitoring
 
 import Cohabr.Db
@@ -113,17 +113,48 @@ pollRSS = do
       recs <- runSqlMonad $ selectMissingPosts $ HabrId <$> ids
       mapM_ (refetchPost undefined) [head recs]
 
+data ExecutionMode
+  = BackfillMode { inputFilePath :: String }
+  | PollingMode { pollInterval :: Rational }
+  deriving (Eq, Show)
+
+data Options = Options
+  { logFilePath :: String
+  , sqlFilePath :: Maybe String
+  , monitoringHost :: BS.ByteString
+  , monitoringPort :: Int
+  , dbName :: String
+  , executionMode :: ExecutionMode
+  } deriving (Eq, Show)
+
+options :: Parser Options
+options = Options
+  <$> strOption (long "log-file" <> short 'l' <> help "Log file name")
+  <*> optional (strOption $ long "sql-log-file" <> help "Log file for the SQL statements")
+  <*> strOption (long "monitoring-host" <> help "Monitoring server bind host name" <> value "localhost" <> showDefault)
+  <*> option auto (long "monitoring-port" <> help "Monitoring server bind port" <> value 8000 <> showDefault)
+  <*> strOption (long "dbname" <> short 'd' <> help "Database name" <> value "habr" <> showDefault)
+  <*> executionMode
+  where
+    executionMode = subparser $ mconcat
+      [ command "backfill" $ info (backfill <**> helper) $ progDesc "Execute the scraper in backfill mode"
+      , command "polling" $ info (polling <**> helper) $ progDesc "Execute the scraper in polling mode"
+      ]
+    backfill = BackfillMode <$> strOption (long "input-path" <> short 'i' <> help "\\n-separated post IDs file")
+    polling = PollingMode <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)")
+
 main :: IO ()
 main = do
-  ekgServer <- forkServer "localhost" 8000
-{-
-  rssPollHandle <- asyncRepeatedly (1 / 60) pollRSS
-  wait rssPollHandle
-  -}
-  [filename] <- getArgs
-  idsStrs <- take 100 . lines <$> readFile filename
-  let ids = read <$> idsStrs
-  withMetricsStore ekgServer $ \metrics ->
-    forM_ ids $ \habrId -> do
-      refetchPost metrics $ HabrId habrId
-      threadDelay 100000
+  Options { .. } <- execParser $ info (options <**> helper) $ fullDesc <> progDesc "Habr scraper"
+  ekgServer <- forkServer monitoringHost monitoringPort
+  case executionMode of
+    PollingMode { .. } -> do
+      rssPollHandle <- asyncRepeatedly (1 / pollInterval) pollRSS
+      wait rssPollHandle
+    BackfillMode { .. } -> do
+      idsStrs <- lines <$> readFile inputFilePath
+      let ids = read <$> idsStrs
+      withMetricsStore ekgServer $ \metrics ->
+        forM_ ids $ \habrId -> do
+          refetchPost metrics $ HabrId habrId
+          threadDelay 100000

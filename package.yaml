@@ -70,6 +70,7 @@ executables:
     - cohabr
     - fixed-timestep
     - http-conduit
+    - optparse-applicative
 
   dboneoff-exe:
     main:                Main.hs
