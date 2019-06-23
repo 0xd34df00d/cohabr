@@ -4,6 +4,7 @@
 module Main where
 
 import qualified Data.ByteString.Char8 as BS
+import qualified Database.PostgreSQL.Simple as PGS
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Exception
@@ -22,7 +23,6 @@ import Time.Repeatedly
 import System.Environment
 import System.Remote.Monitoring
 
-import Database.PostgreSQL.Util
 import Cohabr.Db
 import Cohabr.Db.Inserts
 import Cohabr.Db.HelperTypes
@@ -33,6 +33,11 @@ import Cohabr.Metrics
 import Habr.Parser
 import Habr.RSS
 import Habr.Util
+
+withConnection :: (PGS.Connection -> IO c) -> IO c
+withConnection = bracket
+  (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
+  PGS.close
 
 runSqlMonad :: (forall m. SqlMonad m => m a) -> IO a
 runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = logger }
