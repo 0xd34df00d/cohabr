@@ -34,12 +34,12 @@ import Habr.Parser
 import Habr.RSS
 import Habr.Util
 
-withConnection :: (PGS.Connection -> IO c) -> IO c
+withConnection :: (MonadMask m, MonadIO m) => (PGS.Connection -> m c) -> m c
 withConnection = bracket
-  (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
-  PGS.close
+  (liftIO $ PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
+  (liftIO . PGS.close)
 
-runSqlMonad :: (forall m. (SqlMonad m, MonadCatch m) => m a) -> IO a
+runSqlMonad :: (MonadIO m', MonadMask m', MonadCatch m') => (forall m. (SqlMonad m, MonadCatch m) => m a) -> m' a
 runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = logger }
   where
     logger LogSqlStmt _ = pure ()
