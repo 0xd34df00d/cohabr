@@ -15,7 +15,7 @@ import Control.Monad.Reader
 import Database.Beam.Postgres
 import GHC.Stack
 
-data LogMessageContext = LogSqlStmt | LogDebug | LogWarn
+data LogMessageContext = LogSqlStmt | LogDebug | LogWarn | LogError
   deriving (Eq, Ord, Show)
 
 data SqlEnv = SqlEnv
