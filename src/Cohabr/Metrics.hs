@@ -48,8 +48,8 @@ toDyn :: (Typeable a, ctx a) => a -> Dyn ctx
 toDyn val = Dyn (typeOf val) val
 
 withDyns :: Dyn ctx -> Dyn ctx ->
-               (forall a. ctx a => a -> a -> b) ->
-               (SomeTypeRep -> SomeTypeRep -> b) -> b
+            (forall a. ctx a => a -> a -> b) ->
+            (SomeTypeRep -> SomeTypeRep -> b) -> b
 withDyns (Dyn ty1 v1) (Dyn ty2 v2) f def = case eqTypeRep ty1 ty2 of
   Nothing -> def (SomeTypeRep ty1) (SomeTypeRep ty2)
   Just HRefl -> f v1 v2
@@ -71,7 +71,7 @@ data MetricsState = MetricsState
 $(makeLenses 'MetricsState)
 
 data MetricRequest where
-  MetricRequest :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
+  MetricRequest :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
                 => metric tracker name
                 -> MVar tracker
                 -> MetricRequest
@@ -150,7 +150,7 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
-getMetricStore :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
+getMetricStore :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
                => MetricsStore
                -> metric tracker name
                -> IO tracker
@@ -160,7 +160,7 @@ getMetricStore store metric = do
   takeMVar mvar
 
 class MonadIO m => MonadMetrics m where
-  getMetric :: forall metric tracker name. (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
+  getMetric :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
             => metric tracker name -> m tracker
 
 newtype MetricsT (m :: k -> *) (a :: k) = MetricsT { runMetricsT :: MetricsStore -> m a }
