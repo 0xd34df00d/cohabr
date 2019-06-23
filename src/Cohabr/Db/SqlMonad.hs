@@ -8,6 +8,7 @@ module Cohabr.Db.SqlMonad
 , withTransactionPg
 , runPg
 , inReader
+, writeLog
 ) where
 
 import qualified Database.PostgreSQL.Simple as PGS
@@ -37,3 +38,6 @@ runPg pg = do
 
 inReader :: MonadReader r mr => (m a -> mr b) -> ReaderT r m a -> mr b
 inReader runner act = ask >>= \env -> runner $ runReaderT act env
+
+writeLog :: (HasCallStack, SqlMonad m) => LogMessageContext -> String -> m ()
+writeLog ctx str = reader stmtLogger >>= \logger -> logger ctx str
