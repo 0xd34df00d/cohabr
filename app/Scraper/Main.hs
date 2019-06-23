@@ -70,8 +70,8 @@ timedAvg metric len act = do
   trackLogging metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
   pure res
 
-refetchPost :: MetricsStore -> PostHabrId -> IO ()
-refetchPost metrics habrPostId = runSqlMonad $ flip runMetricsT metrics $ handleJust selector handler $ do
+refetchPost :: (SqlMonad m, MonadCatch m, MonadMetrics m) => PostHabrId -> m ()
+refetchPost habrPostId = handleJust selector handler $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
   postPage <- timed PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
@@ -103,15 +103,15 @@ refetchPost metrics habrPostId = runSqlMonad $ flip runMetricsT metrics $ handle
       writeLog LogError $ "Post is unavailable: " <> show habrPostId
       track DeniedPagesCount
 
-pollRSS :: IO ()
+pollRSS :: (SqlMonad m, MonadCatch m, MonadMetrics m) => m ()
 pollRSS = do
   rss <- simpleHttp "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
   let maybeIds = recentArticles rss
   case maybeIds of
     Nothing -> undefined
     Just ids -> do
-      recs <- runSqlMonad $ selectMissingPosts $ HabrId <$> ids
-      mapM_ (refetchPost undefined) [head recs]
+      recs <- selectMissingPosts $ HabrId <$> ids
+      mapM_ refetchPost recs
 
 data ExecutionMode
   = BackfillMode { inputFilePath :: String }
@@ -147,14 +147,15 @@ main :: IO ()
 main = do
   Options { .. } <- execParser $ info (options <**> helper) $ fullDesc <> progDesc "Habr scraper"
   ekgServer <- forkServer monitoringHost monitoringPort
-  case executionMode of
-    PollingMode { .. } -> do
-      rssPollHandle <- asyncRepeatedly (1 / pollInterval) pollRSS
-      wait rssPollHandle
-    BackfillMode { .. } -> do
-      idsStrs <- lines <$> readFile inputFilePath
-      let ids = read <$> idsStrs
-      withMetricsStore ekgServer $ \metrics ->
-        forM_ ids $ \habrId -> do
-          refetchPost metrics $ HabrId habrId
-          threadDelay 100000
+  withMetricsStore ekgServer $ \metrics ->
+    case executionMode of
+      PollingMode { .. } -> do
+        rssPollHandle <- asyncRepeatedly (1 / pollInterval) $ runSqlMonad $ runMetricsT pollRSS metrics
+        wait rssPollHandle
+      BackfillMode { .. } -> do
+        idsStrs <- lines <$> readFile inputFilePath
+        let ids = read <$> idsStrs
+        runSqlMonad $ flip runMetricsT metrics $
+          forM_ ids $ \habrId -> do
+            refetchPost $ HabrId habrId
+            liftIO $ threadDelay 100000
