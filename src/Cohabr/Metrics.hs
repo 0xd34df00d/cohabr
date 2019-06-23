@@ -1,13 +1,12 @@
-{-# LANGUAGE DataKinds, RankNTypes, GADTs, TypeFamilies #-}
+{-# LANGUAGE DataKinds, RankNTypes, GADTs, TypeFamilies, PolyKinds, TypeFamilyDependencies #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Cohabr.Metrics
 ( MetricsStore
 , newMetricsStore
 , withMetricsStore
-, getMetric
 
 , Metric(..)
 , track
@@ -16,10 +15,18 @@ module Cohabr.Metrics
 
 , Counter
 , Distribution
+
+, MonadMetrics(..)
+, MetricsT
+, runMetricsT
+, Metrics
 ) where
 
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
+import Control.Monad.Identity
+import Control.Monad.IO.Class
+import Control.Monad.Reader
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
@@ -105,20 +112,20 @@ withMetricsStore srv f = bracket
   (f . fst)
 
 class Typeable tracker => TrackerLike tracker where
-  type TrackAction tracker :: *
-  track :: KnownSymbol name => MetricsStore -> Metric tracker name -> TrackAction tracker
+  type TrackAction tracker (m :: * -> *) = r | r -> m
+  track :: (MonadMetrics m, KnownSymbol name) => Metric tracker name -> TrackAction tracker m
   trackerMap :: Lens' MetricsState (M.Map DynOrd tracker)
   createTracker :: T.Text -> Store -> IO tracker
 
 instance TrackerLike Counter where
-  type TrackAction Counter = IO ()
-  track store metric = getMetric store metric >>= TC.inc
+  type TrackAction Counter m = m ()
+  track metric = getMetric metric >>= liftIO . TC.inc
   trackerMap = counters
   createTracker = createCounter
 
 instance TrackerLike Distribution where
-  type TrackAction Distribution = Double -> IO ()
-  track store metric val = getMetric store metric >>= flip TD.add val
+  type TrackAction Distribution m = Double -> m ()
+  track metric val = getMetric metric >>= \distr -> liftIO $ TD.add distr val
   trackerMap = distributions
   createTracker = createDistribution
 
@@ -137,11 +144,44 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
-getMetric :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
-          => MetricsStore
-          -> Metric tracker name
-          -> IO tracker
-getMetric store metric = do
+getMetricStore :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
+               => MetricsStore
+               -> Metric tracker name
+               -> IO tracker
+getMetricStore store metric = do
   mvar <- newEmptyMVar
   atomically $ writeTQueue (mReqQueue store) $ MetricRequest metric mvar
   takeMVar mvar
+
+class MonadIO m => MonadMetrics m where
+  getMetric :: forall tracker name. (TrackerLike tracker, KnownSymbol name)
+            => Metric tracker name -> m tracker
+
+newtype MetricsT (m :: k -> *) (a :: k) = MetricsT { runMetricsT :: MetricsStore -> m a }
+type Metrics = MetricsT Identity
+
+instance Functor m => Functor (MetricsT m) where
+  fmap f (MetricsT m) = MetricsT $ fmap f . m
+
+instance Applicative m => Applicative (MetricsT m) where
+  pure = MetricsT . const . pure
+  (MetricsT fun) <*> (MetricsT val) = MetricsT $ \store -> fun store <*> val store
+
+instance Monad m => Monad (MetricsT m) where
+  (MetricsT val) >>= f = MetricsT $ \store -> val store >>= \a -> runMetricsT (f a) store
+
+instance MonadIO m => MonadMetrics (MetricsT m) where
+  getMetric metric = MetricsT $ \store -> liftIO $ getMetricStore store metric
+
+
+instance MonadTrans MetricsT where
+  lift m = MetricsT $ const m
+
+
+instance MonadIO m => MonadIO (MetricsT m) where
+  liftIO act = MetricsT $ const $ liftIO act
+
+instance MonadReader r m => MonadReader r (MetricsT m) where
+  ask = MetricsT $ const ask
+  reader f = MetricsT $ const $ reader f
+  local m (MetricsT rFun) = MetricsT $ local m . rFun
