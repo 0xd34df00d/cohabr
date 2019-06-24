@@ -36,6 +36,7 @@ dependencies:
 - filepath
 - hashable
 - html-conduit
+- html-entities
 - http-client
 - http-types
 - interpolate
