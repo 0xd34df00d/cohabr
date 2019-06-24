@@ -75,6 +75,7 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
   , pOrigViewsNearly = val_ $ Just $ not $ HT.isExactCount views
   , pCurrentVersion = val_ versionId
   , pAuthor = val_ $ Just userId
+  , pLastQueried = default_
   }
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
