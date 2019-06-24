@@ -191,7 +191,7 @@ parseHumanReadableTimestamp text = parse $ T.unpack <$> T.words text
     parse ws = parseTimeM False locale "%e %B %Y в %H:%M" $ unwords ws
 
     -- TODO use DiffTime parsing instance when time-1.9 is available in LTS
-    parseTime [h1, h2, ':', m1, m2] = pure $ timeToTimeOfDay $ secondsToDiffTime $ read [h1, h2] * 60 + read [m1, m2]
+    parseTime [h1, h2, ':', m1, m2] = pure $ timeToTimeOfDay $ secondsToDiffTime $ read [h1, h2] * 3600 + read [m1, m2] * 60
     parseTime str = throwParseError [i|unable to parse time string `#{str}`|]
 
     locale = defaultTimeLocale
