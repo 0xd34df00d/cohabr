@@ -25,6 +25,7 @@ import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument, node)
 import Time.Repeatedly
 import System.Log.FastLogger
+import System.Posix.Signals
 import System.Remote.Monitoring
 
 import Cohabr.Db
@@ -187,7 +188,16 @@ main = do
         let rssPoller = runSqlMonad $ runMetricsT pollRSS metrics
         rssPoller
         rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller
-        wait rssPollHandle
+
+        let sigintHandler = Catch $ do
+              stmtLogger LogDebug "shutting down..."
+              cancel rssPollHandle
+
+        void $ installHandler sigINT sigintHandler Nothing
+        void $ installHandler sigTERM sigintHandler Nothing
+
+        void $ waitCatch rssPollHandle
+        stmtLogger LogDebug "RSS polling thread finished"
       BackfillMode { .. } -> do
         idsStrs <- lines <$> readFile inputFilePath
         let ids = read <$> idsStrs
@@ -195,4 +205,5 @@ main = do
           forM_ ids $ \habrId -> do
             refetchPost $ HabrId habrId
             liftIO $ threadDelay 100000
+  stmtLogger LogDebug "bye-bye!"
   loggerCleanup

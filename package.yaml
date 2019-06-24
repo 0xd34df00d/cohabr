@@ -73,6 +73,7 @@ executables:
     - fixed-timestep
     - http-conduit
     - optparse-applicative
+    - unix
 
   dboneoff-exe:
     main:                Main.hs
