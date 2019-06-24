@@ -267,32 +267,32 @@ commentTests = do
       runSqlMonad $ insertCommentTree pid initialTree
       pure () :: Expectation
     it "restores the same comments" $ do
-      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
-      comments `shouldBe` initialTree
+      LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      commentsTree `shouldBe` initialTree
   describe "Updating with more comments" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
         stored <- getStoredPostInfo testPostId
         updateComments $ commentsUpdatesActions (fromJust stored) appendedTree
     it "saves the comments fully" $ do
-      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
-      comments `shouldBe` appendedTree
+      LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      commentsTree `shouldBe` appendedTree
   describe "When changing the body" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
         stored <- getStoredPostInfo testPostId
         updateComments $ commentsUpdatesActions (fromJust stored) changedTree
     it "saves the comments fully" $ do
-      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
-      comments `shouldBe` changedTree
+      LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      commentsTree `shouldBe` changedTree
   describe "When deleting a comment" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
         stored <- getStoredPostInfo testPostId
         updateComments $ commentsUpdatesActions (fromJust stored) deletedTree
     it "keeps the non-deleted version" $ do
-      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
-      comments `shouldBe` changedTree
+      LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      commentsTree `shouldBe` changedTree
 
 getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId

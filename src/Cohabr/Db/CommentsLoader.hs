@@ -3,9 +3,11 @@
 
 module Cohabr.Db.CommentsLoader
 ( loadComments
+, LoadedComments(..)
 ) where
 
 import qualified Data.IntMap.Strict as IM
+import qualified Data.HashSet as HS
 import Control.Monad.Except
 import Data.List.Extra
 import Data.Maybe
@@ -19,7 +21,12 @@ import Cohabr.Db.SqlMonad
 import Cohabr.Db.Queries
 import Cohabr.Db.Utils
 
-loadComments :: SqlMonad m => HT.CommentContents -> PostPKey -> m HT.Comments
+data LoadedComments = LoadedComments
+  { commentsTree :: HT.Comments
+  , deletedSet :: HS.HashSet CommentHabrId
+  } deriving (Eq, Show)
+
+loadComments :: SqlMonad m => HT.CommentContents -> PostPKey -> m LoadedComments
 loadComments defaultContents postId = do
   storedComments <- getPostComments postId
   let authors = nubOrd $ mapMaybe cAuthor storedComments
@@ -29,8 +36,10 @@ loadComments defaultContents postId = do
        Right comments -> pure comments
        Left err -> throwSql err
 
-fromStoredComments :: forall m. MonadError String m => HT.CommentContents -> IM.IntMap HT.Avatar -> [Comment] -> m HT.Comments
-fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM convSingle comments
+fromStoredComments :: forall m. MonadError String m => HT.CommentContents -> IM.IntMap HT.Avatar -> [Comment] -> m LoadedComments
+fromStoredComments defaultContents avatars comments = do
+  commentsTree <- buildCommentsTree <$> mapM convSingle comments
+  pure LoadedComments { .. }
   where
     convSingle :: Comment -> m HT.Comment
     convSingle Comment { .. } = do
@@ -55,6 +64,7 @@ fromStoredComments defaultContents avatars comments = buildCommentsTree <$> mapM
                               | Comment { .. } <- comments
                               ]
     HT.CommentExisting { .. } = defaultContents
+    deletedSet = HS.fromList [ cSourceId | Comment { .. } <- comments, cDeleted ]
 
 fromStoredAvatar :: UserAvatar -> HT.Avatar
 fromStoredAvatar = HT.CustomAvatar . HT.URL . uaBigImageUrl
