@@ -27,6 +27,7 @@ import qualified Data.Text as T
 import Control.Monad.Catch
 import Control.Monad.Identity
 import Control.Monad.IO.Class
+import Data.Time.Clock.POSIX
 import Control.Monad.Reader
 import Control.Monad.STM
 import Control.Concurrent
@@ -153,6 +154,30 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
+time :: MonadIO m => m a -> m (Double, a)
+time act = do
+  start <- liftIO $ realToFrac <$> getPOSIXTime
+  result <- act
+  end <- liftIO $ realToFrac <$> getPOSIXTime
+  let !delta = end - start
+  pure (delta, result)
+
+trackLogging :: forall m name. (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Double -> m ()
+trackLogging metric t = do
+  writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> " in " <> show t
+  track metric t
+
+timed :: (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
+timed metric act = do
+  (t, res) <- time act
+  trackLogging metric $ t * 1000
+  pure res
+
+timedAvg :: (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
+timedAvg metric len act = do
+  (t, res) <- time act
+  trackLogging metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
+  pure res
 getMetricStore :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
                => MetricsStore
                -> metric tracker name

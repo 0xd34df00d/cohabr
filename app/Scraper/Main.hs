@@ -14,7 +14,6 @@ import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Monoid
-import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
 import Data.Proxy
 import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
@@ -50,31 +49,6 @@ withConnection dbName = bracket
     void $ PGS.execute_ conn "SET timezone = 'Europe/Moscow'"
     pure conn)
   (liftIO . PGS.close)
-
-time :: MonadIO m => m a -> m (Double, a)
-time act = do
-  start <- liftIO $ realToFrac <$> getPOSIXTime
-  result <- act
-  end <- liftIO $ realToFrac <$> getPOSIXTime
-  let !delta = end - start
-  pure (delta, result)
-
-trackLogging :: forall m name. (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Double -> m ()
-trackLogging metric t = do
-  writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> " in " <> show t
-  track metric t
-
-timed :: (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
-timed metric act = do
-  (t, res) <- time act
-  trackLogging metric $ t * 1000
-  pure res
-
-timedAvg :: (SqlMonad m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
-timedAvg metric len act = do
-  (t, res) <- time act
-  trackLogging metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
-  pure res
 
 refetchPost :: (SqlMonad m, MonadCatch m, MonadMetrics m) => PostHabrId -> m ()
 refetchPost habrPostId = handleJust selector handler $ do
