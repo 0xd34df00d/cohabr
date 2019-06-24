@@ -92,7 +92,7 @@ refetchPost habrPostId = handleJust selector handler $ do
         Nothing -> timed TotalInsertTime $ do
           writeLog LogDebug "inserting new one"
           dbId <- timed PostInsertTime $ insertPost habrPostId post
-          timedAvg PerCommentInsertTime commentsLength $ insertCommentTree dbId comments
+          unless (null comments) $ timedAvg PerCommentInsertTime commentsLength $ insertCommentTree dbId comments
         Just storedInfo -> timed TotalUpdateTime $ do
           writeLog LogDebug "updating"
           timed PostUpdateTime $ updatePost $ postUpdateActions storedInfo post
