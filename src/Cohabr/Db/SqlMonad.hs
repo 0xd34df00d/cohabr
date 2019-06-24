@@ -4,6 +4,8 @@
 module Cohabr.Db.SqlMonad
 ( SqlEnv(..)
 , LogMessageContext(..)
+, Logger
+, LoggerHolder(..)
 , SqlMonad
 , withTransactionPg
 , runPg
@@ -19,9 +21,13 @@ import GHC.Stack
 data LogMessageContext = LogSqlStmt | LogDebug | LogWarn | LogError
   deriving (Eq, Ord, Show)
 
+type Logger = forall m. (HasCallStack, MonadIO m) => LogMessageContext -> String -> m ()
+
+newtype LoggerHolder = LoggerHolder { getLogger :: Logger }
+
 data SqlEnv = SqlEnv
   { conn :: Connection
-  , stmtLogger :: forall m. (HasCallStack, MonadIO m) => LogMessageContext -> String -> m ()
+  , stmtLogger :: Logger
   }
 
 type SqlMonad m = (MonadReader SqlEnv m, MonadIO m)
