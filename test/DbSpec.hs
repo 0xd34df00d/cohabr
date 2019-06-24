@@ -259,7 +259,8 @@ commentTests = do
         updateComment 2 (\comm -> comm { HT.contents = (HT.contents comm) { HT.commentChanged = True, HT.commentText = "This is a changed body" } })
         appendedComments
   let deletedTree = buildCommentsTree $
-        updateComment 2 (\comm -> comm { HT.contents = HT.CommentDeleted })
+        updateComment 2 (\comm -> comm { HT.contents = HT.CommentDeleted }) $
+        updateComment 5 (\comm -> comm { HT.contents = HT.CommentDeleted })
         appendedComments
   describe "Inserting a comment tree" $ do
     it "inserts without error" $ do
@@ -295,7 +296,7 @@ commentTests = do
     it "keeps the non-deleted version" $ do
       LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       commentsTree `shouldBe` changedTree
-      deletedSet `shouldBe` [HabrId 12, HabrId 13]
+      deletedSet `shouldBe` [HabrId 12, HabrId 13, HabrId 15]
 
 getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
