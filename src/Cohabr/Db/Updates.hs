@@ -160,6 +160,7 @@ data CommentsUpdatesActions = CommentsUpdatesActions
   , newCommentsSubtrees :: HT.Comments
   , possiblyChangedComments :: [(CommentPKey, T.Text)]
   , updatedVotes :: [(CommentPKey, HT.Votes)]
+  , deletedComments :: [CommentPKey]
   }
 
 updateComments :: forall m. SqlMonad m => CommentsUpdatesActions -> m ()
@@ -175,6 +176,10 @@ updateComments CommentsUpdatesActions { .. } = withTransactionPg `inReader` do
     (\comm -> (cScorePlus comm <-. val_ (Just pos))
            <> (cScoreMinus comm <-. val_ (Just neg)))
     (\comm -> cId comm ==. val_ commentId)
+  runUpdate $ update
+    (cComments cohabrDb)
+    (\comm -> cDeleted comm <-. val_ True)
+    (\comm -> cId comm `in_` fmap val_ deletedComments)
 
 updateCommentText :: (MonadBeam Postgres m, SqlMonad m) => CommentPKey -> T.Text -> m ()
 updateCommentText commentId body = runUpdate $ update
@@ -186,19 +191,25 @@ commentsUpdatesActions :: StoredPostInfo -> HT.Comments -> CommentsUpdatesAction
 commentsUpdatesActions spi parsedComments = CommentsUpdatesActions
   { commentsPostId = pId $ storedPost spi
   , newCommentsSubtrees = concatMap (findSubroots $ not . (`HM.member` storedIdsMap) . HabrId . HT.commentId) parsedComments
-  , possiblyChangedComments = mapMaybe makeChanged $ concatMap flatten parsedComments
   , updatedVotes = concatMap (foldl votesUpdater []) parsedComments
+  , possiblyChangedComments = mapMaybe makeChanged commentsList
+  , deletedComments = mapMaybe makeDeleted commentsList
   }
   where
     makeChanged comment | HT.CommentExisting { .. } <- HT.contents comment
                         , commentChanged
                         , Just info <- HM.lookup (HabrId $ HT.commentId comment) storedIdsMap = Just (commentPKey info, commentText)
                         | otherwise = Nothing
+    makeDeleted comment | HT.CommentDeleted <- HT.contents comment
+                        , Just ShortCommentInfo { .. } <- HM.lookup (HabrId $ HT.commentId comment) storedIdsMap
+                        , not isDeleted = Just commentPKey
+                        | otherwise = Nothing
     votesUpdater acc HT.Comment { .. } | HT.CommentExisting { .. } <- contents
                                        , Just ShortCommentInfo { .. } <- HM.lookup (HabrId commentId) storedIdsMap
                                        , (posVotes, negVotes) /= (Just $ HT.pos votes, Just $ HT.neg votes) = (commentPKey, votes) : acc
                                        | otherwise = acc
     storedIdsMap = HM.fromList $ storedCommentShorts spi
+    commentsList = concatMap flatten parsedComments
 
 findSubroots :: (a -> Bool) -> Tree a -> [Tree a]
 findSubroots p t@Node { .. } | p rootLabel = [t]
