@@ -7,6 +7,9 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Concurrent
 import Control.Concurrent.Async
+import Control.DeepSeq
+import Control.Exception(evaluate)
+import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -19,7 +22,7 @@ import Network.HTTP.Conduit hiding(Proxy)
 import Network.HTTP.Types.Status(statusCode)
 import Options.Applicative
 import Text.HTML.DOM(parseLBS)
-import Text.XML.Cursor(fromDocument)
+import Text.XML.Cursor(fromDocument, node)
 import Time.Repeatedly
 import System.Remote.Monitoring
 
@@ -76,7 +79,8 @@ refetchPost habrPostId = handleJust selector handler $ do
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
   postPage <- timed PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
   let root = fromDocument $ parseLBS postPage
-  let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
+  void $ timed PageXMLParseTime $ force' $ node root
+  parseResult <- timed PageContentsParseTime $ force' $ runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
     Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
@@ -102,6 +106,8 @@ refetchPost habrPostId = handleJust selector handler $ do
     handler _ = do
       writeLog LogError $ "Post is unavailable: " <> show habrPostId
       track DeniedPagesCount
+
+    force' = liftIO . evaluate . force
 
 pollRSS :: (SqlMonad m, MonadCatch m, MonadMetrics m) => m ()
 pollRSS = do

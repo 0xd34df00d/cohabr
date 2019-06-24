@@ -130,7 +130,8 @@ instance TrackerLike Distribution where
   createTracker = createDistribution
 
 data Metric tracker name where
-  PageParseTime               :: Metric Distribution "page.parse_ms"
+  PageContentsParseTime       :: Metric Distribution "page.parse.contents_ms"
+  PageXMLParseTime            :: Metric Distribution "page.parse.xml_ms"
   PageFetchTime               :: Metric Distribution "page.fetch_ms"
   NumPagesFetched             :: Metric Counter      "page.fetches_count"
   DeniedPagesCount            :: Metric Counter      "page.denied_count"

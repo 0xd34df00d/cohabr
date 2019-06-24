@@ -25,6 +25,7 @@ dependencies:
 - beam-postgres
 - bytestring
 - containers
+- deepseq
 - dom-selector
 - either
 - ekg
