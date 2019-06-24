@@ -160,7 +160,9 @@ main = do
   withMetricsStore ekgServer $ \metrics ->
     case executionMode of
       PollingMode { .. } -> do
-        rssPollHandle <- asyncRepeatedly (1 / pollInterval) $ runSqlMonad $ runMetricsT pollRSS metrics
+        let rssPoller = runSqlMonad $ runMetricsT pollRSS metrics
+        rssPoller
+        rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller
         wait rssPollHandle
       BackfillMode { .. } -> do
         idsStrs <- lines <$> readFile inputFilePath
