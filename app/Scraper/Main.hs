@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables, OverloadedStrings, BangPatterns, RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables, OverloadedStrings, BangPatterns, RecordWildCards, ViewPatterns #-}
 
 module Main where
 
@@ -24,6 +24,7 @@ import Options.Applicative
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument, node)
 import Time.Repeatedly
+import System.Log.FastLogger
 import System.Remote.Monitoring
 
 import Cohabr.Db
@@ -37,21 +38,15 @@ import Habr.Parser
 import Habr.RSS
 import Habr.Util
 
-withConnection :: (MonadMask m, MonadIO m) => (PGS.Connection -> m c) -> m c
-withConnection = bracket
+withConnection :: (MonadMask m, MonadIO m) => String -> (PGS.Connection -> m c) -> m c
+withConnection dbName = bracket
   (liftIO $ do
-    conn <- PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" }
+    conn <- PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = dbName }
     -- I really regret doing this, but the rest of the DB has been created assuming
     -- Moscow locale, and let's at least be consistent.
     void $ PGS.execute_ conn "SET timezone = 'Europe/Moscow'"
     pure conn)
   (liftIO . PGS.close)
-
-runSqlMonad :: (MonadIO m', MonadMask m', MonadCatch m') => (forall m. (SqlMonad m, MonadCatch m) => m a) -> m' a
-runSqlMonad act = withConnection $ \c -> runReaderT act SqlEnv { conn = c, stmtLogger = logger }
-  where
-    logger LogSqlStmt _ = pure ()
-    logger _ msg = liftIO $ putStrLn msg
 
 time :: MonadIO m => m a -> m (Double, a)
 time act = do
@@ -158,9 +153,31 @@ options = Options
     backfill = BackfillMode <$> strOption (long "input-path" <> short 'i' <> help "\\n-separated post IDs file")
     polling = PollingMode <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)")
 
+mkLoggers :: Options -> IO (LoggerHolder, IO ())
+mkLoggers Options { .. } = do
+  cache <- newTimeCache simpleTimeFormat
+  (sqlLogger, sqlCleanup) <- newTimedFastLogger cache sqlLoggerType
+  (restLogger, restCleanup) <- newTimedFastLogger cache $ LogFileNoRotate logFilePath defaultBufSize
+  let logger level msg | level == LogSqlStmt = liftIO $ sqlLogger logStr
+                       | otherwise = liftIO $ restLogger logStr
+        where logStr ts = toLogStr ts <> " [" <> levelStr level <> "] " <> toLogStr msg <> "\n\n"
+  pure (LoggerHolder logger, sqlCleanup >> restCleanup)
+  where
+    sqlLoggerType | Just path <- sqlFilePath = LogFileNoRotate path $ defaultBufSize * 10
+                  | otherwise = LogNone
+    levelStr LogSqlStmt = "sql"
+    levelStr LogDebug = "debug"
+    levelStr LogWarn = "warn"
+    levelStr LogError = "error"
+
 main :: IO ()
 main = do
-  Options { .. } <- execParser $ info (options <**> helper) $ fullDesc <> progDesc "Habr scraper"
+  opts@Options { .. } <- execParser $ info (options <**> helper) $ fullDesc <> progDesc "Habr scraper"
+
+  (getLogger -> stmtLogger, loggerCleanup) <- mkLoggers opts
+
+  let runSqlMonad act = withConnection dbName $ \conn -> runReaderT act SqlEnv { .. }
+
   ekgServer <- forkServer monitoringHost monitoringPort
   withMetricsStore ekgServer $ \metrics ->
     case executionMode of
@@ -176,3 +193,4 @@ main = do
           forM_ ids $ \habrId -> do
             refetchPost $ HabrId habrId
             liftIO $ threadDelay 100000
+  loggerCleanup
