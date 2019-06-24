@@ -13,7 +13,7 @@ import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
-import Data.List
+import Data.Monoid
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
 import Data.Proxy
@@ -84,18 +84,19 @@ refetchPost habrPostId = handleJust selector handler $ do
   case parseResult of
     Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
+      let commentsLength = getSum $ mconcat $ Sum . length <$> comments
       writeLog LogDebug "fetched!"
-      trackLogging FetchedCommentsCount $ genericLength comments
+      trackLogging FetchedCommentsCount $ fromIntegral commentsLength
       maybeStoredInfo <- timed StoredPostInfoRetrievalTime $ getStoredPostInfo habrPostId
       case maybeStoredInfo of
         Nothing -> timed TotalInsertTime $ do
           writeLog LogDebug "inserting new one"
           dbId <- timed PostInsertTime $ insertPost habrPostId post
-          timedAvg PerCommentInsertTime (length comments) $ insertCommentTree dbId comments
+          timedAvg PerCommentInsertTime commentsLength $ insertCommentTree dbId comments
         Just storedInfo -> timed TotalUpdateTime $ do
           writeLog LogDebug "updating"
           timed PostUpdateTime $ updatePost $ postUpdateActions storedInfo post
-          timedAvg PerCommentUpdateTime (length comments) $ updateComments $ commentsUpdatesActions storedInfo comments
+          timedAvg PerCommentUpdateTime commentsLength $ updateComments $ commentsUpdatesActions storedInfo comments
   writeLog LogDebug $ "done processing " <> show habrPostId
   where
     selector (HttpExceptionRequest _ (StatusCodeException resp contents))
