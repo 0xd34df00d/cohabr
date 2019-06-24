@@ -39,7 +39,12 @@ import Habr.Util
 
 withConnection :: (MonadMask m, MonadIO m) => (PGS.Connection -> m c) -> m c
 withConnection = bracket
-  (liftIO $ PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" })
+  (liftIO $ do
+    conn <- PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr" }
+    -- I really regret doing this, but the rest of the DB has been created assuming
+    -- Moscow locale, and let's at least be consistent.
+    void $ PGS.execute_ conn "SET timezone = 'Europe/Moscow'"
+    pure conn)
   (liftIO . PGS.close)
 
 runSqlMonad :: (MonadIO m', MonadMask m', MonadCatch m') => (forall m. (SqlMonad m, MonadCatch m) => m a) -> m' a
