@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists, RecordWildCards, DuplicateRecordFields, TypeApplications #-}
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
 
 module DbSpec(spec) where
@@ -265,10 +265,10 @@ commentTests = do
     it "inserts without error" $ do
       pid <- runSqlMonad $ pId . fst . fromJust <$> findPostByHabrId testPostId
       runSqlMonad $ insertCommentTree pid initialTree
-      pure () :: Expectation
     it "restores the same comments" $ do
       LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       commentsTree `shouldBe` initialTree
+      deletedSet `shouldBe` [HabrId 13]
   describe "Updating with more comments" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
@@ -277,6 +277,7 @@ commentTests = do
     it "saves the comments fully" $ do
       LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       commentsTree `shouldBe` appendedTree
+      deletedSet `shouldBe` [HabrId 13]
   describe "When changing the body" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
@@ -285,6 +286,7 @@ commentTests = do
     it "saves the comments fully" $ do
       LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       commentsTree `shouldBe` changedTree
+      deletedSet `shouldBe` [HabrId 13]
   describe "When deleting a comment" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
@@ -293,6 +295,7 @@ commentTests = do
     it "keeps the non-deleted version" $ do
       LoadedComments { .. } <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       commentsTree `shouldBe` changedTree
+      deletedSet `shouldBe` [HabrId 12, HabrId 13]
 
 getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
@@ -316,7 +319,7 @@ runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn,
 
 clearTables :: IO ()
 clearTables = void $ withConnection $ \conn ->
-  mapM_ (\table -> PGS.execute_ conn $ "TRUNCATE TABLE " <> table <> " RESTART IDENTITY CASCADE")
+  mapM_ @[] (\table -> PGS.execute_ conn $ "TRUNCATE TABLE " <> table <> " RESTART IDENTITY CASCADE")
     [ "comments"
     , "flags"
     , "hubs"
