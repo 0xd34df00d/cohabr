@@ -157,12 +157,14 @@ mkLoggers :: Options -> IO (LoggerHolder, IO ())
 mkLoggers Options { .. } = do
   cache <- newTimeCache simpleTimeFormat
   (sqlLogger, sqlCleanup) <- newTimedFastLogger cache sqlLoggerType
-  (restLogger, restCleanup) <- newTimedFastLogger cache $ LogFileNoRotate logFilePath defaultBufSize
+  (restLogger, restCleanup) <- newTimedFastLogger cache normalLoggerType
   let logger level msg | level == LogSqlStmt = liftIO $ sqlLogger logStr
                        | otherwise = liftIO $ restLogger logStr
         where logStr ts = toLogStr ts <> " [" <> levelStr level <> "] " <> toLogStr msg <> "\n\n"
   pure (LoggerHolder logger, sqlCleanup >> restCleanup)
   where
+    normalLoggerType | logFilePath == "-" = LogStdout defaultBufSize
+                     | otherwise = LogFileNoRotate logFilePath defaultBufSize
     sqlLoggerType | Just path <- sqlFilePath = LogFileNoRotate path $ defaultBufSize * 10
                   | otherwise = LogNone
     levelStr LogSqlStmt = "sql"
