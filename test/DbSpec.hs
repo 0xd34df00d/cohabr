@@ -258,6 +258,9 @@ commentTests = do
   let changedTree = buildCommentsTree $
         updateComment 2 (\comm -> comm { HT.contents = (HT.contents comm) { HT.commentChanged = True, HT.commentText = "This is a changed body" } })
         appendedComments
+  let deletedTree = buildCommentsTree $
+        updateComment 2 (\comm -> comm { HT.contents = HT.CommentDeleted })
+        appendedComments
   describe "Inserting a comment tree" $ do
     it "inserts without error" $ do
       pid <- runSqlMonad $ pId . fst . fromJust <$> findPostByHabrId testPostId
@@ -274,12 +277,20 @@ commentTests = do
     it "saves the comments fully" $ do
       comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       comments `shouldBe` appendedTree
-  describe "With changing the body" $ do
+  describe "When changing the body" $ do
     it "saves the new comments wihout error" $
       runSqlMonad $ do
         stored <- getStoredPostInfo testPostId
         updateComments $ commentsUpdatesActions (fromJust stored) changedTree
     it "saves the comments fully" $ do
+      comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
+      comments `shouldBe` changedTree
+  describe "When deleting a comment" $ do
+    it "saves the new comments wihout error" $
+      runSqlMonad $ do
+        stored <- getStoredPostInfo testPostId
+        updateComments $ commentsUpdatesActions (fromJust stored) deletedTree
+    it "keeps the non-deleted version" $ do
       comments <- runSqlMonad $ getPostIdByHabrId testPostId >>= loadComments undefined
       comments `shouldBe` changedTree
 
