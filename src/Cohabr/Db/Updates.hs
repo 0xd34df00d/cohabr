@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, RecordWildCards, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, QuasiQuotes #-}
 {-# LANGUAGE FlexibleContexts, GADTs #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
