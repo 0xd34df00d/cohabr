@@ -54,14 +54,15 @@ data ShortCommentInfo = ShortCommentInfo
   { commentPKey :: CommentPKey
   , posVotes :: Maybe Int
   , negVotes :: Maybe Int
+  , isDeleted :: Bool
   }
 
 getPostCommentsShorts :: SqlMonad m => PostPKey -> m [(CommentHabrId, ShortCommentInfo)]
 getPostCommentsShorts postId = fmap (fmap $ second toShortInfo) $ runPg $ runSelectReturningList $ select query
   where
     query = fmap toShortTuple $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
-    toShortTuple Comment { .. } = (cSourceId, (cId, cScorePlus, cScoreMinus))
-    toShortInfo (commentPKey, posVotes, negVotes) = ShortCommentInfo { .. }
+    toShortTuple Comment { .. } = (cSourceId, (cId, cScorePlus, cScoreMinus, cDeleted))
+    toShortInfo (commentPKey, posVotes, negVotes, isDeleted) = ShortCommentInfo { .. }
 
 getCommentsContents :: SqlMonad m => [CommentPKey] -> m [(CommentPKey, Maybe T.Text)]
 getCommentsContents commentIds = runPg $ runSelectReturningList $ select query
