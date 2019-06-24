@@ -117,7 +117,10 @@ pollRSS = do
   case maybeIds of
     Nothing -> undefined
     Just ids -> do
+      writeLog LogDebug $ "Got new posts: " <> show ids
       recs <- selectMissingPosts $ HabrId <$> ids
+      track NewPostsCount $ fromIntegral $ length recs
+      writeLog LogDebug $ "Got missing posts: " <> show recs
       mapM_ refetchPost recs
 
 data ExecutionMode

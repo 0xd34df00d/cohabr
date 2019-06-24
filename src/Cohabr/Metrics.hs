@@ -137,6 +137,8 @@ data Metric tracker name where
   DeniedPagesCount            :: Metric Counter      "page.denied_count"
   FetchedCommentsCount        :: Metric Distribution "page.comments_count"
 
+  NewPostsCount               :: Metric Distribution "rss.newposts_count"
+
   StoredPostInfoRetrievalTime :: Metric Distribution "db.fetch.storedpost_ms"
 
   PostInsertTime              :: Metric Distribution "db.insert.post_ms"
