@@ -69,6 +69,7 @@ executables:
     dependencies:
     - async
     - cohabr
+    - fast-logger
     - fixed-timestep
     - http-conduit
     - optparse-applicative
