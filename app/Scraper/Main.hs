@@ -35,8 +35,10 @@ import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
 import Cohabr.Metrics
+import Habr.Normalizer
 import Habr.Parser
 import Habr.RSS
+import Habr.Types
 import Habr.Util
 
 withConnection :: (MonadMask m, MonadIO m) => String -> (PGS.Connection -> m c) -> m c
@@ -78,10 +80,12 @@ refetchPost :: (SqlMonad m, MonadCatch m, MonadMetrics m) => PostHabrId -> m ()
 refetchPost habrPostId = handleJust selector handler $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
-  postPage <- timed PageFetchTime $ simpleHttp $ urlForPostId $ getHabrId habrPostId
+  let url = urlForPostId $ getHabrId habrPostId
+  let normalize = normalizeText $ normalizeUrls $ URL url
+  postPage <- timed PageFetchTime $ simpleHttp url
   let root = fromDocument $ parseLBS postPage
   void $ timed PageXMLParseTime $ force' $ node root
-  parseResult <- timed PageContentsParseTime $ force' $ runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
+  parseResult <- timed PageContentsParseTime $ force' $ normalize $ runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   case parseResult of
     Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
