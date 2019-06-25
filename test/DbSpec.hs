@@ -125,7 +125,7 @@ postTests = do
       (oldVerId, newVerId) <- doUpdates updated testPostIdUpdateBoth
       oldVerId `shouldNotBe` newVerId
     describe "stored post matches" $
-      testStoredPostMatches updated testPostId
+      testStoredPostMatches updated testPostIdUpdateBoth
   where
     doUpdates updated habrId = do
       Just stored <- runSqlMonad $ getStoredPostInfo habrId
