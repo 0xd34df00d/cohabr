@@ -82,6 +82,15 @@ renormalizePostContents post = post
 
 postTests :: Spec
 postTests = do
+  describe "Matching posts contents" $ do
+    let a ~~ b = it (a <> " ~~ " <> b) $ bodyFuzzyMatch (T.pack a) (T.pack b) `shouldBe` True
+    let a ~/~ b = it (a <> " ~/~ " <> b) $ bodyFuzzyMatch (T.pack a) (T.pack b) `shouldBe` False
+    "foo bar" ~~ "foo bar"
+    "foo bar" ~/~ "foo baz"
+    "foo — bar" ~~ "foo &mdash; bar"
+    "foo — bar" ~~ "foo &mdash;&mdash; bar"
+    "foo amp; bar" ~~ "foo &amp;amp; bar"
+    "foo «bar»" ~~ "foo &laquo;bar&raquo;"
   describe "Inserting new post" $ do
     it "inserts a new post" $
       runSqlMonad (insertPost testPostId testPost) `shouldReturn` PKeyId 1

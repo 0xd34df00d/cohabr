@@ -13,6 +13,8 @@ module Cohabr.Db.Updates
 
 , StoredPostInfo(..)
 , getStoredPostInfo
+
+, bodyFuzzyMatch
 ) where
 
 import qualified Data.HashMap.Strict as HM
