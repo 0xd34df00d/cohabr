@@ -49,6 +49,7 @@ dependencies:
 - text
 - time
 - tuple
+- tz
 - uniplate
 - unordered-containers
 - xml-conduit

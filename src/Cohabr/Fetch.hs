@@ -9,6 +9,8 @@ module Cohabr.Fetch
 , newUpdatesThread
 , withUpdatesThread
 , scheduleRefetch
+
+, checkUpdates
 ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -21,6 +23,7 @@ import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Monoid
+import Data.Time.Clock
 import Data.Time.LocalTime
 import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
 import Network.HTTP.Conduit hiding(Proxy)
@@ -35,6 +38,7 @@ import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
 import Cohabr.Metrics
+import Cohabr.MoscowTime
 import Habr.Normalizer
 import Habr.Parser
 import Habr.Types
@@ -131,3 +135,42 @@ updatesThreadServer UpdatesThread { .. } = forever $ do
     modifyTVar' pendingRequests $ HS.delete postId
     pure postId
   monadRunner $ refetchPost nextPostId
+
+checkUpdates :: MetricableSqlMonad m => UpdatesThread -> m ()
+checkUpdates ut = do
+  dates <- getPublishUpdateDates
+  moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
+  let toRequest = take 100 $ filter (shallUpdate moscowNow) dates
+  writeLog LogDebug $ "Scheduling updating " <> show toRequest
+  liftIO $ mapM_ (scheduleRefetch ut . postHabrId) toRequest
+
+shallUpdate :: LocalTime -> UpdateInfo -> Bool
+shallUpdate now UpdateInfo { .. } = checkDiff > thresholdFor lastModificationDiff
+  where
+    checkDiff = now `diffLocalTime` lastQueried
+    lastModificationDiff = now `diffLocalTime` published
+    diffLocalTime a b = diffUTCTime (localTimeToUTC utc a) (localTimeToUTC utc b)
+
+thresholdFor :: NominalDiffTime -> NominalDiffTime
+thresholdFor dt | dt < 5 * minute = 2 * minute
+                | dt < 30 * minute = 3 * minute
+                | dt < hour = 4 * minute
+                | dt < 3 * hour = 5 * minute
+                | dt < 6 * hour = 10 * minute
+                | dt < 12 * hour = 20 * minute
+                | dt < day = 30 * minute
+                | dt < 2 * day = hour
+                | dt < 3 * day = 3 * hour
+                | dt < 4 * day = 6 * hour
+                | dt < week = 12 * hour
+                | dt < 2 * week = day
+                | dt < 4 * week = 2 * day
+                | dt < year = week
+                | otherwise = month
+  where
+    minute = 60
+    hour = minute * 60
+    day = 24 * hour
+    week = 7 * day
+    month = 30 * day
+    year = 365 * week
