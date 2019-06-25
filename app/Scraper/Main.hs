@@ -60,7 +60,7 @@ options = Options
       , command "polling" $ info (polling <**> helper) $ progDesc "Execute the scraper in polling mode"
       ]
     backfill = BackfillMode <$> strOption (long "input-path" <> short 'i' <> help "\\n-separated post IDs file")
-    polling = PollingMode <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)")
+    polling = PollingMode <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)" <> value 60 <> showDefault)
 
 mkLoggers :: Options -> IO (LoggerHolder, IO ())
 mkLoggers Options { .. } = do
