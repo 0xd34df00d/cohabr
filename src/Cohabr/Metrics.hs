@@ -30,7 +30,7 @@ data Metric tracker name where
 
   NewPostsCount               :: Metric Distribution "rss.newposts_count"
 
-  StoredPostInfoRetrievalTime :: Metric Distribution "db.fetch.storedpost_ms"
+  StoredPostInfoRetrievalTime :: Metric Distribution "db.fetch.stored_post_ms"
 
   PostInsertTime              :: Metric Distribution "db.insert.post_ms"
   PerCommentInsertTime        :: Metric Distribution "db.insert.percomment_ms"
@@ -39,6 +39,9 @@ data Metric tracker name where
   PostUpdateTime              :: Metric Distribution "db.update.post_ms"
   PerCommentUpdateTime        :: Metric Distribution "db.update.percomment_ms"
   TotalUpdateTime             :: Metric Distribution "db.update.total_ms"
+
+  UpdatesCandidatesQueryTime  :: Metric Distribution "db.fetch.updates_candidates_ms"
+  LastCommentDateQueryTime    :: Metric Distribution "db.fetch.last_comment_date_ms"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
