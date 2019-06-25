@@ -103,16 +103,17 @@ pollRSS = do
 
 data UpdatesThread = UpdatesThread
   { monadRunner :: MetricableSqlMonadRunner
-  , reqQueue :: TQueue PostHabrId
+  , reqQueue :: TQueue UpdateInfo
   , pendingRequests :: TVar (HS.HashSet PostHabrId)
   }
 
-scheduleRefetch :: UpdatesThread -> PostHabrId -> IO ()
-scheduleRefetch UpdatesThread { .. } postId = atomically $ do
+schedulePostCheck :: UpdatesThread -> UpdateInfo -> IO ()
+schedulePostCheck UpdatesThread { .. } updateInfo = atomically $ do
   pending <- readTVar pendingRequests
-  unless (postId `HS.member` pending) $ do
-    modifyTVar' pendingRequests $ HS.insert postId
-    writeTQueue reqQueue postId
+  unless (phId `HS.member` pending) $ do
+    modifyTVar' pendingRequests $ HS.insert phId
+    writeTQueue reqQueue updateInfo
+  where phId = postHabrId updateInfo
 
 newUpdatesThread :: MetricableSqlMonadRunner -> IO (UpdatesThread, IO ())
 newUpdatesThread monadRunner = do
@@ -130,19 +131,19 @@ withUpdatesThread monadRunner f = bracket
 
 updatesThreadServer :: UpdatesThread -> IO ()
 updatesThreadServer UpdatesThread { .. } = forever $ do
-  nextPostId <- atomically $ do
-    postId <- readTQueue reqQueue
-    modifyTVar' pendingRequests $ HS.delete postId
-    pure postId
-  monadRunner $ refetchPost nextPostId
+  UpdateInfo { .. } <- atomically $ do
+    updateInfo <- readTQueue reqQueue
+    modifyTVar' pendingRequests $ HS.delete $ postHabrId updateInfo
+    pure updateInfo
+  monadRunner $ refetchPost postHabrId
 
 checkUpdates :: MetricableSqlMonad m => UpdatesThread -> m ()
 checkUpdates ut = do
-  dates <- getPublishUpdateDates
+  dates <- timed UpdatesCandidatesQueryTime getPublishUpdateDates
   moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
   let toRequest = take 100 $ filter (shallUpdate moscowNow) dates
   writeLog LogDebug $ "Scheduling updating " <> show toRequest
-  liftIO $ mapM_ (scheduleRefetch ut . postHabrId) toRequest
+  liftIO $ mapM_ (schedulePostCheck ut) toRequest
 
 shallUpdate :: LocalTime -> UpdateInfo -> Bool
 shallUpdate now UpdateInfo { .. } = checkDiff > thresholdFor lastModificationDiff
