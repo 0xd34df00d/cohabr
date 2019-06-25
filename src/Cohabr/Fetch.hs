@@ -148,6 +148,7 @@ checkUpdates ut = do
   writeLog LogDebug $ "Scheduling updating " <> show toRequest
   liftIO $ mapM_ (schedulePostCheck ut) toRequest
   utQueueSize <- liftIO $ queueSize ut
+  track UpdateCheckQueueSize $ fromIntegral utQueueSize
 
 shallUpdate :: LocalTime -> UpdateInfo -> Bool
 shallUpdate now UpdateInfo { .. } = checkDiff > thresholdFor lastModificationDiff

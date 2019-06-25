@@ -15,6 +15,7 @@ import Data.Proxy
 import GHC.TypeLits
 import System.Metrics.Counter as TC
 import System.Metrics.Distribution as TD
+import System.Metrics.Gauge as TG
 import Type.Reflection
 
 import Cohabr.Db.SqlMonad
@@ -42,6 +43,8 @@ data Metric tracker name where
 
   UpdatesCandidatesQueryTime  :: Metric Distribution "db.fetch.updates_candidates_ms"
   LastCommentDateQueryTime    :: Metric Distribution "db.fetch.last_comment_date_ms"
+
+  UpdateCheckQueueSize        :: Metric Gauge        "page.update.queue_size"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
