@@ -5,6 +5,7 @@ module Cohabr.Db.Queries where
 import qualified Data.Text as T
 import Control.Arrow
 import Data.List
+import Data.Time.LocalTime
 import Database.Beam
 
 import Cohabr.Db
@@ -58,7 +59,7 @@ data ShortCommentInfo = ShortCommentInfo
   }
 
 getPostCommentsShorts :: SqlMonad m => PostPKey -> m [(CommentHabrId, ShortCommentInfo)]
-getPostCommentsShorts postId = fmap (fmap $ second toShortInfo) $ runPg $ runSelectReturningList $ select query
+getPostCommentsShorts postId = fmap (second toShortInfo <$>) $ runPg $ runSelectReturningList $ select query
   where
     query = fmap toShortTuple $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
     toShortTuple Comment { .. } = (cSourceId, (cId, cScorePlus, cScoreMinus, cDeleted))
@@ -67,3 +68,16 @@ getPostCommentsShorts postId = fmap (fmap $ second toShortInfo) $ runPg $ runSel
 getCommentsContents :: SqlMonad m => [CommentPKey] -> m [(CommentPKey, Maybe T.Text)]
 getCommentsContents commentIds = runPg $ runSelectReturningList $ select query
   where query = fmap (cId &&& cText) $ filter_ (\comm -> cId comm `in_` fmap val_ commentIds) $ all_ $ cComments cohabrDb
+
+data UpdateInfo = UpdateInfo
+  { postHabrId :: PostHabrId
+  , published :: LocalTime
+  , lastQueried :: LocalTime
+  } deriving (Eq, Ord, Show)
+
+getPublishUpdateDates :: SqlMonad m => m [UpdateInfo]
+getPublishUpdateDates = fmap (toUpdateInfo <$>) $ runPg $ runSelectReturningList $ select query
+  where
+    query = fmap toShortTuple $ all_ $ cPosts cohabrDb
+    toShortTuple Post { .. } = (pSourceId, pPublished, pLastQueried)
+    toUpdateInfo (postHabrId, published, lastQueried) = UpdateInfo { .. }
