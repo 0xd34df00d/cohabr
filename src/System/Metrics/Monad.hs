@@ -31,6 +31,7 @@ import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
 import Data.Proxy
+import GHC.Int
 import GHC.TypeLits
 import Lens.Micro
 import Lens.Micro.TH
@@ -38,6 +39,7 @@ import System.Remote.Monitoring
 import System.Metrics
 import System.Metrics.Counter as TC
 import System.Metrics.Distribution as TD
+import System.Metrics.Gauge as TG
 import Type.Reflection
 
 data Dyn ctx where
@@ -65,6 +67,7 @@ data MetricsState = MetricsState
   { _server :: Server
   , _counters :: M.Map DynOrd Counter
   , _distributions :: M.Map DynOrd Distribution
+  , _gauges :: M.Map DynOrd Gauge
   }
 
 $(makeLenses 'MetricsState)
@@ -80,7 +83,7 @@ newtype MetricsStore = MetricsStore { mReqQueue :: TQueue MetricRequest }
 newMetricsStore :: Server -> IO (MetricsStore, IO ())
 newMetricsStore srv = do
   queue <- newTQueueIO
-  threadId <- forkIO $ act queue $ MetricsState srv mempty mempty
+  threadId <- forkIO $ act queue $ MetricsState srv mempty mempty mempty
   pure (MetricsStore queue, killThread threadId)
   where
     act queue state = do
@@ -127,6 +130,12 @@ instance TrackerLike Distribution where
   track metric val = getMetric metric >>= \distr -> liftIO $ TD.add distr val
   trackerMap = distributions
   createTracker = createDistribution
+
+instance TrackerLike Gauge where
+  type TrackAction Gauge m = Int64 -> m ()
+  track metric val = getMetric metric >>= \gauge -> liftIO $ TG.set gauge val
+  trackerMap = gauges
+  createTracker = createGauge
 
 getMetricStore :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
                => MetricsStore
