@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction, ConstraintKinds, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Cohabr.Fetch where
 
@@ -30,7 +30,11 @@ import Habr.Types
 import Habr.RSS
 import Habr.Util
 
-refetchPost :: (SqlMonad m, MonadCatch m, MonadMetrics m) => PostHabrId -> m ()
+type MetricableSqlMonad m = (SqlMonad m, MonadCatch m, MonadMetrics m)
+
+type MetricableSqlMonadRunner = forall a. (forall m. MetricableSqlMonad m => m a) -> IO a
+
+refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
 refetchPost habrPostId = handleJust selector handler $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
@@ -69,7 +73,7 @@ refetchPost habrPostId = handleJust selector handler $ do
 
     force' = liftIO . evaluate . force
 
-pollRSS :: (SqlMonad m, MonadCatch m, MonadMetrics m) => m ()
+pollRSS :: MetricableSqlMonad m => m ()
 pollRSS = do
   rss <- simpleHttp "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
   let maybeIds = recentArticles rss

@@ -87,13 +87,14 @@ main = do
 
   (getLogger -> stmtLogger, loggerCleanup) <- mkLoggers opts
 
-  let runSqlMonad act = withConnection dbName $ \conn -> runReaderT act SqlEnv { .. }
-
   ekgServer <- forkServer monitoringHost monitoringPort
-  withMetricsStore ekgServer $ \metrics ->
+  withMetricsStore ekgServer $ \metrics -> do
+
+    let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) SqlEnv { .. }
+
     case executionMode of
       PollingMode { .. } -> do
-        let rssPoller = runSqlMonad $ runMetricsT pollRSS metrics
+        let rssPoller = runFullMonad pollRSS
         rssPoller
         rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller
 
@@ -109,7 +110,7 @@ main = do
       BackfillMode { .. } -> do
         idsStrs <- lines <$> readFile inputFilePath
         let ids = read <$> idsStrs
-        runSqlMonad $ flip runMetricsT metrics $
+        runFullMonad $
           forM_ ids $ \habrId -> do
             refetchPost $ HabrId habrId
             liftIO $ threadDelay 100000
