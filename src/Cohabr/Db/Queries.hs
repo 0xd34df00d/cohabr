@@ -7,6 +7,7 @@ import Control.Arrow
 import Data.List
 import Data.Time.LocalTime
 import Database.Beam
+import Control.Monad
 
 import Cohabr.Db
 import Cohabr.Db.SqlMonad
@@ -82,3 +83,8 @@ getPublishUpdateDates = fmap (toUpdateInfo <$>) $ runPg $ runSelectReturningList
     query = fmap toShortTuple $ all_ $ cPosts cohabrDb
     toShortTuple Post { .. } = (pId, pSourceId, pPublished, pLastQueried)
     toUpdateInfo (postPKey, postHabrId, published, lastQueried) = UpdateInfo { .. }
+
+getLastCommentDate :: SqlMonad m => PostPKey -> m (Maybe LocalTime)
+getLastCommentDate postId = fmap (join . join) $ runPg $ runSelectReturningOne $ select query
+  where
+    query = aggregate_ (max_ . cDate) $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
