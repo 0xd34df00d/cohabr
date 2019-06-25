@@ -32,7 +32,7 @@ import Habr.Util
 testPost :: HT.Post
 testPost = HT.Post
   { HT.title = "Test post title"
-  , HT.body = "First version of the body"
+  , HT.body = "Первая версия тела &mdash; поста"
   , HT.hubs = [ HT.Hub "somehub" "Some hub" HT.NormalHub
               , HT.Hub "initech" "Initech company" HT.CompanyHub
               ]
@@ -72,7 +72,12 @@ changePostMeta post = post
 changePostContents :: HT.Post -> HT.Post
 changePostContents post = post
   { HT.title = "Yay we changed the title!"
-  , HT.body = "Yay we changed the body!"
+  , HT.body = "Вторая версия тела поста"
+  }
+
+renormalizePostContents :: HT.Post -> HT.Post
+renormalizePostContents post = post
+  { HT.body = "Первая версия тела — поста"
   }
 
 postTests :: Spec
@@ -90,6 +95,10 @@ postTests = do
   describe "Updating post with itself" $
     it "inserts the update without errors keeping the version" $ do
       (oldVerId, newVerId) <- doUpdates testPost testPostId
+      oldVerId `shouldBe` newVerId
+  describe "Updating post with Unicode/control renormalization" $
+    it "inserts the update without errors keeping the version" $ do
+      (oldVerId, newVerId) <- doUpdates (renormalizePostContents testPost) testPostId
       oldVerId `shouldBe` newVerId
   describe "Updating post with new metainformation" $ do
     let updated = changePostMeta testPost

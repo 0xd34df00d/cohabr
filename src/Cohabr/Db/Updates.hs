@@ -19,6 +19,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Control.Monad
 import Control.Monad.Reader
+import Data.Char
 import Data.Maybe
 import Data.String.Interpolate
 import Data.Tree
@@ -152,8 +153,17 @@ postUpdateActions StoredPostInfo { .. } HT.Post { .. } = PostUpdateActions { .. 
     upOrigViewsNearly = produceUpdateField storedPost pOrigViewsNearly $ not $ HT.isExactCount views
 
     newPostVersion | Just title == pvTitle storedCurrentVersion &&
-                     body == pvContent storedCurrentVersion = Nothing
+                     body `bodyFuzzyMatch` pvContent storedCurrentVersion = Nothing
                    | otherwise = Just RawPostVersion { rawPVTitle = title, rawPVText = body }
+
+bodyFuzzyMatch :: T.Text -> T.Text -> Bool
+bodyFuzzyMatch new old = normalize old == normalize new
+  where
+    normalize = T.filter isAlphaNum . removeEntities
+    safeDrop t = if T.null t' then t' else T.tail t'
+      where t' = T.dropWhile (/= ';') t
+    removeEntities t = mconcat $ h : fmap safeDrop rest
+      where (h:rest) = T.split (== '&') t
 
 data CommentsUpdatesActions = CommentsUpdatesActions
   { commentsPostId :: PostPKey
