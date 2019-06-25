@@ -38,6 +38,7 @@ dependencies:
 - html-conduit
 - html-entities
 - http-client
+- http-conduit
 - http-types
 - interpolate
 - microlens
@@ -72,7 +73,6 @@ executables:
     - cohabr
     - fast-logger
     - fixed-timestep
-    - http-conduit
     - optparse-applicative
     - unix
 
