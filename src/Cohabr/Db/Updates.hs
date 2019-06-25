@@ -14,6 +14,8 @@ module Cohabr.Db.Updates
 , StoredPostInfo(..)
 , getStoredPostInfo
 
+, bumpPostQueryTime
+
 , bodyFuzzyMatch
 ) where
 
@@ -76,6 +78,12 @@ updatePost pua@PostUpdateActions { .. } | isNullPostUpdate pua = pure ()
     let curVerId = pCurrentVersion currentRow
     updateVersionHubs curVerId isNewVersion hubsDiff
     updateVersionTags curVerId isNewVersion tagsDiff
+
+bumpPostQueryTime :: SqlMonad m => PostPKey -> m ()
+bumpPostQueryTime postId = runPg $ runUpdate $ update
+  (cPosts cohabrDb)
+  (\post -> pLastQueried post <-. now_)
+  (\post -> pId post ==. val_ postId)
 
 updatePostVersion :: MonadBeamInsertReturning Postgres m => PostPKey -> Maybe RawPostVersion -> m (Maybe PostVersionPKey)
 updatePostVersion _ Nothing = pure Nothing
