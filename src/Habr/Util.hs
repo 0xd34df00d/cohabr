@@ -3,6 +3,7 @@
 module Habr.Util
 ( buildCommentsTree
 , urlForPostId
+, rssUrlForPostId
 ) where
 
 import qualified Data.IntMap as IM
@@ -26,3 +27,6 @@ buildCommentsTree comments = go 0
 
 urlForPostId :: IsString a => Int -> a
 urlForPostId pgId = [i|https://habr.com/ru/post/#{pgId}/|]
+
+rssUrlForPostId :: IsString a => Int -> a
+rssUrlForPostId pgId = [i|https://habr.com/ru/rss/post/#{pgId}/|]
