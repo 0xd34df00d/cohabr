@@ -103,21 +103,24 @@ pollRSS = do
 
 data UpdatesThread = UpdatesThread
   { monadRunner :: MetricableSqlMonadRunner
-  , reqQueue :: TQueue UpdateInfo
+  , reqQueue :: TBQueue UpdateInfo
   , pendingRequests :: TVar (HS.HashSet PostHabrId)
   }
+
+queueSize :: UpdatesThread -> IO Natural
+queueSize ut = atomically $ lengthTBQueue $ reqQueue ut
 
 schedulePostCheck :: UpdatesThread -> UpdateInfo -> IO ()
 schedulePostCheck UpdatesThread { .. } updateInfo = atomically $ do
   pending <- readTVar pendingRequests
   unless (phId `HS.member` pending) $ do
     modifyTVar' pendingRequests $ HS.insert phId
-    writeTQueue reqQueue updateInfo
+    writeTBQueue reqQueue updateInfo
   where phId = postHabrId updateInfo
 
 newUpdatesThread :: MetricableSqlMonadRunner -> IO (UpdatesThread, IO ())
 newUpdatesThread monadRunner = do
-  reqQueue <- newTQueueIO
+  reqQueue <- newTBQueueIO 1000
   pendingRequests <- newTVarIO mempty
   let ut = UpdatesThread { .. }
   threadId <- forkIO $ updatesThreadServer ut
@@ -132,7 +135,7 @@ withUpdatesThread monadRunner f = bracket
 updatesThreadServer :: UpdatesThread -> IO ()
 updatesThreadServer UpdatesThread { .. } = forever $ do
   UpdateInfo { .. } <- atomically $ do
-    updateInfo <- readTQueue reqQueue
+    updateInfo <- readTBQueue reqQueue
     modifyTVar' pendingRequests $ HS.delete $ postHabrId updateInfo
     pure updateInfo
   monadRunner $ refetchPost postHabrId
@@ -144,6 +147,7 @@ checkUpdates ut = do
   let toRequest = take 100 $ filter (shallUpdate moscowNow) dates
   writeLog LogDebug $ "Scheduling updating " <> show toRequest
   liftIO $ mapM_ (schedulePostCheck ut) toRequest
+  utQueueSize <- liftIO $ queueSize ut
 
 shallUpdate :: LocalTime -> UpdateInfo -> Bool
 shallUpdate now UpdateInfo { .. } = checkDiff > thresholdFor lastModificationDiff
