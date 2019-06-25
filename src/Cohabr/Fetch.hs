@@ -1,9 +1,20 @@
 {-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction, ConstraintKinds, RankNTypes #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Cohabr.Fetch where
+module Cohabr.Fetch
+( refetchPost
+, pollRSS
+
+, UpdatesThread
+, newUpdatesThread
+, withUpdatesThread
+, scheduleRefetch
+) where
 
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.HashSet as HS
+import Control.Concurrent
+import Control.Concurrent.STM
 import Control.DeepSeq
 import Control.Exception(evaluate)
 import Control.Monad.Catch
@@ -85,3 +96,38 @@ pollRSS = do
       track NewPostsCount $ fromIntegral $ length recs
       writeLog LogDebug $ "Got missing posts: " <> show recs
       mapM_ refetchPost recs
+
+data UpdatesThread = UpdatesThread
+  { monadRunner :: MetricableSqlMonadRunner
+  , reqQueue :: TQueue PostHabrId
+  , pendingRequests :: TVar (HS.HashSet PostHabrId)
+  }
+
+scheduleRefetch :: UpdatesThread -> PostHabrId -> IO ()
+scheduleRefetch UpdatesThread { .. } postId = atomically $ do
+  pending <- readTVar pendingRequests
+  unless (postId `HS.member` pending) $ do
+    modifyTVar' pendingRequests $ HS.insert postId
+    writeTQueue reqQueue postId
+
+newUpdatesThread :: MetricableSqlMonadRunner -> IO (UpdatesThread, IO ())
+newUpdatesThread monadRunner = do
+  reqQueue <- newTQueueIO
+  pendingRequests <- newTVarIO mempty
+  let ut = UpdatesThread { .. }
+  threadId <- forkIO $ updatesThreadServer ut
+  pure (ut, killThread threadId)
+
+withUpdatesThread :: MetricableSqlMonadRunner -> (UpdatesThread -> IO a) -> IO a
+withUpdatesThread monadRunner f = bracket
+  (newUpdatesThread monadRunner)
+  snd
+  (f . fst)
+
+updatesThreadServer :: UpdatesThread -> IO ()
+updatesThreadServer UpdatesThread { .. } = forever $ do
+  nextPostId <- atomically $ do
+    postId <- readTQueue reqQueue
+    modifyTVar' pendingRequests $ HS.delete postId
+    pure postId
+  monadRunner $ refetchPost nextPostId
