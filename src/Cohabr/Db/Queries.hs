@@ -70,7 +70,8 @@ getCommentsContents commentIds = runPg $ runSelectReturningList $ select query
   where query = fmap (cId &&& cText) $ filter_ (\comm -> cId comm `in_` fmap val_ commentIds) $ all_ $ cComments cohabrDb
 
 data UpdateInfo = UpdateInfo
-  { postHabrId :: PostHabrId
+  { postPKey :: PostPKey
+  , postHabrId :: PostHabrId
   , published :: LocalTime
   , lastQueried :: LocalTime
   } deriving (Eq, Ord, Show)
@@ -79,5 +80,5 @@ getPublishUpdateDates :: SqlMonad m => m [UpdateInfo]
 getPublishUpdateDates = fmap (toUpdateInfo <$>) $ runPg $ runSelectReturningList $ select query
   where
     query = fmap toShortTuple $ all_ $ cPosts cohabrDb
-    toShortTuple Post { .. } = (pSourceId, pPublished, pLastQueried)
-    toUpdateInfo (postHabrId, published, lastQueried) = UpdateInfo { .. }
+    toShortTuple Post { .. } = (pId, pSourceId, pPublished, pLastQueried)
+    toUpdateInfo (postPKey, postHabrId, published, lastQueried) = UpdateInfo { .. }
