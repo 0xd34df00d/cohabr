@@ -170,7 +170,9 @@ checkUpdates :: MetricableSqlMonad m => UpdatesThread -> m ()
 checkUpdates ut = do
   dates <- timed UpdatesCandidatesQueryTime getPublishUpdateDates
   moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
-  let toRequest = take 100 $ filter (shallUpdate moscowNow) dates
+  let fullQueue = reverse $ sortOn (published) $ filter (shallUpdate moscowNow) dates
+  track OutdatedItemsCount $ genericLength fullQueue
+  let toRequest = take 100 fullQueue
   writeLog LogDebug $ "Scheduling updating " <> show toRequest
   liftIO $ mapM_ (schedulePostCheck ut) toRequest
 
