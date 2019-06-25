@@ -45,6 +45,7 @@ dependencies:
 - microlens-th
 - mtl
 - postgresql-simple
+- safe
 - stm
 - text
 - time
