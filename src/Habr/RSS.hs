@@ -9,6 +9,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Text as T
 import Control.Monad
 import Data.Maybe
+import Data.Time.Clock
 import Data.Time.Format
 import Data.Time.LocalTime
 import Text.Feed.Import
@@ -34,12 +35,12 @@ extractRssChannel RSSChannel { .. } = mapMaybe handleItem rssItems
       let Right val = readInt postId
       pure val
 
-lastCommentDate :: BSL.ByteString -> Maybe LocalTime
+lastCommentDate :: BSL.ByteString -> Maybe UTCTime
 lastCommentDate str = parseFeedSource str >>= extract
   where
     extract (RSSFeed RSS { .. }) = extractDate rssChannel
     extract _ = error "Unsupported feed format"
 
-extractDate :: RSSChannel -> Maybe LocalTime
-extractDate RSSChannel { .. } = maximumMay =<<
+extractDate :: RSSChannel -> Maybe UTCTime
+extractDate RSSChannel { .. } = maximumMay . fmap zonedTimeToUTC =<<
   mapM (rssItemPubDate >=> parseTimeM True defaultTimeLocale rfc822DateFormat . T.unpack) rssItems
