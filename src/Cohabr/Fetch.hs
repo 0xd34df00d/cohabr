@@ -19,15 +19,18 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.DeepSeq
 import Control.Exception(evaluate)
+import Control.Monad.Extra
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.List
 import Data.Monoid
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
 import Network.HTTP.Conduit hiding(Proxy)
 import Network.HTTP.Types.Status(statusCode)
+import Numeric.Natural
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument, node)
 
@@ -133,12 +136,35 @@ withUpdatesThread monadRunner f = bracket
   (f . fst)
 
 updatesThreadServer :: UpdatesThread -> IO ()
-updatesThreadServer UpdatesThread { .. } = forever $ do
+updatesThreadServer ut@UpdatesThread { .. } = forever $ do
   UpdateInfo { .. } <- atomically $ do
     updateInfo <- readTBQueue reqQueue
     modifyTVar' pendingRequests $ HS.delete $ postHabrId updateInfo
     pure updateInfo
-  monadRunner $ refetchPost postHabrId
+
+  utQueueSize <- queueSize ut
+  monadRunner $ track UpdateCheckQueueSize $ fromIntegral utQueueSize
+
+  moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
+
+  monadRunner $ handleAll (\ex -> writeLog LogError $ "Unable to process " <> show postHabrId <> ":\n" <> show ex) $ do
+    if moscowNow `diffLocalTime` published < week
+       then refetchPost postHabrId
+       else whenM (isRssNewer postPKey postHabrId) $ refetchPost postHabrId
+    bumpPostQueryTime postPKey
+
+  threadDelay 1000000
+
+isRssNewer :: MetricableSqlMonad m => PostPKey -> PostHabrId -> m Bool
+isRssNewer postPKey habrPostId = do
+  rss <- simpleHttp $ rssUrlForPostId $ getHabrId habrPostId
+  case lastCommentDate rss of
+    Nothing -> pure False
+    Just lastRss -> do
+      maybeLastStored <- timed LastCommentDateQueryTime $ getLastCommentDate postPKey
+      case maybeLastStored of
+        Nothing -> pure True
+        Just lastStored -> pure $ abs (lastStored `diffLocalTime` utcTimeToMoscowTime lastRss) > 30
 
 checkUpdates :: MetricableSqlMonad m => UpdatesThread -> m ()
 checkUpdates ut = do
@@ -147,8 +173,6 @@ checkUpdates ut = do
   let toRequest = take 100 $ filter (shallUpdate moscowNow) dates
   writeLog LogDebug $ "Scheduling updating " <> show toRequest
   liftIO $ mapM_ (schedulePostCheck ut) toRequest
-  utQueueSize <- liftIO $ queueSize ut
-  track UpdateCheckQueueSize $ fromIntegral utQueueSize
 
 shallUpdate :: LocalTime -> UpdateInfo -> Bool
 shallUpdate now UpdateInfo { .. } = checkDiff > thresholdFor lastModificationDiff
