@@ -1,5 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables, OverloadedStrings, RecordWildCards, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, ViewPatterns #-}
 
 module Main where
 
