@@ -55,8 +55,9 @@ type MetricableSqlMonadRunner = forall a. (forall m. MetricableSqlMonad m => m a
 
 httpExHandler :: MetricableSqlMonad m => PostHabrId -> BS.ByteString -> HttpException -> m ()
 httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException resp respContents))
-  | statusCode (responseStatus resp) `elem` [403, 404]
-  , marker `BS.isInfixOf` respContents = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
+  | statusCode (responseStatus resp) == 403
+  , marker `BS.isInfixOf` respContents      = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
+  | statusCode (responseStatus resp) == 404 = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
 httpExHandler _ _ ex = throwM ex
 
 refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
