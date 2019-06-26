@@ -54,13 +54,17 @@ type MetricableSqlMonadRunner = forall a. (forall m. MetricableSqlMonad m => m a
 refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
 refetchPost habrPostId = handleJust selector handler $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
+
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
+
   let url = urlForPostId $ getHabrId habrPostId
-  let normalize = normalizeUrls $ URL url
   postPage <- timed PageFetchTime $ simpleHttp url
+
   let root = fromDocument $ parseLBS postPage
   void $ timed PageXMLParseTime $ force' $ node root
+  let normalize = normalizeUrls $ URL url
   parseResult <- timed PageContentsParseTime $ force' $ normalize $ runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
+
   case parseResult of
     Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
