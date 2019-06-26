@@ -159,7 +159,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
   threadDelay 1000000
 
 isRssNewer :: MetricableSqlMonad m => PostPKey -> PostHabrId -> m Bool
-isRssNewer postPKey habrPostId = do
+isRssNewer postPKey habrPostId = handle (\ex -> httpExHandler habrPostId "<!DOCTYPE" ex $> False) $ do
   rss <- simpleHttp $ rssUrlForPostId $ getHabrId habrPostId
   case lastCommentDate rss of
     Nothing -> pure False
