@@ -10,6 +10,7 @@ module Cohabr.Db.Updates
 
 , updateComments
 , commentsUpdatesActions
+, newCommentsCount
 
 , StoredPostInfo(..)
 , getStoredPostInfo
@@ -25,6 +26,7 @@ import Control.Monad
 import Control.Monad.Reader
 import Data.Char
 import Data.Maybe
+import Data.Monoid
 import Data.String.Interpolate
 import Data.Tree
 import Database.Beam hiding(timestamp)
@@ -182,6 +184,9 @@ data CommentsUpdatesActions = CommentsUpdatesActions
   , updatedVotes :: [(CommentPKey, HT.Votes)]
   , deletedComments :: [CommentPKey]
   }
+
+newCommentsCount :: CommentsUpdatesActions -> Int
+newCommentsCount cua = getSum $ mconcat $ Sum . length <$> newCommentsSubtrees cua
 
 updateComments :: forall m. SqlMonad m => CommentsUpdatesActions -> m ()
 updateComments CommentsUpdatesActions { .. } = withTransactionPg `inReader` do
