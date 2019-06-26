@@ -51,8 +51,14 @@ type MetricableSqlMonad m = (SqlMonad m, MonadCatch m, MonadMetrics m)
 
 type MetricableSqlMonadRunner = forall a. (forall m. MetricableSqlMonad m => m a) -> IO a
 
+httpExHandler :: MetricableSqlMonad m => PostHabrId -> BS.ByteString -> HttpException -> m ()
+httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException resp respContents))
+  | statusCode (responseStatus resp) `elem` [403, 404]
+  , marker `BS.isInfixOf` respContents = track DeniedPagesCount >> writeLog LogError ("Post is unavailable: " <> show habrPostId)
+httpExHandler _ _ ex = throwM ex
+
 refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
-refetchPost habrPostId = handleJust selector handler $ do
+refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://habr.com/ru/users/") $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
 
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
@@ -84,16 +90,8 @@ refetchPost habrPostId = handleJust selector handler $ do
           trackLogging UpdatedCommentsCount $ fromIntegral $ newCommentsCount commentsUpdates
           timedAvg PerCommentUpdateTime commentsLength $ updateComments commentsUpdates
   writeLog LogDebug $ "done processing " <> show habrPostId
+
   where
-    selector (HttpExceptionRequest _ (StatusCodeException resp respContents))
-      | statusCode (responseStatus resp) == 403
-      , "<a href=\"https://habr.com/ru/users/" `BS.isInfixOf` respContents = Just ()
-    selector _ = Nothing
-
-    handler _ = do
-      writeLog LogError $ "Post is unavailable: " <> show habrPostId
-      track DeniedPagesCount
-
     force' = liftIO . evaluate . force
 
 pollRSS :: MetricableSqlMonad m => m ()
