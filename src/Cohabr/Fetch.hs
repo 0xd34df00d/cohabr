@@ -22,6 +22,7 @@ import Control.Monad.Extra
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.Functor
 import Data.List
 import Data.Monoid
 import Data.Time.Clock
@@ -54,7 +55,7 @@ type MetricableSqlMonadRunner = forall a. (forall m. MetricableSqlMonad m => m a
 httpExHandler :: MetricableSqlMonad m => PostHabrId -> BS.ByteString -> HttpException -> m ()
 httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException resp respContents))
   | statusCode (responseStatus resp) `elem` [403, 404]
-  , marker `BS.isInfixOf` respContents = track DeniedPagesCount >> writeLog LogError ("Post is unavailable: " <> show habrPostId)
+  , marker `BS.isInfixOf` respContents = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
 httpExHandler _ _ ex = throwM ex
 
 refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
