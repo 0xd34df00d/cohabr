@@ -77,7 +77,9 @@ refetchPost habrPostId = handleJust selector handler $ do
         Just storedInfo -> timed TotalUpdateTime $ do
           writeLog LogDebug "updating"
           timed PostUpdateTime $ updatePost $ postUpdateActions storedInfo post
-          timedAvg PerCommentUpdateTime commentsLength $ updateComments $ commentsUpdatesActions storedInfo comments
+          let commentsUpdates = commentsUpdatesActions storedInfo comments
+          trackLogging UpdatedCommentsCount $ fromIntegral $ newCommentsCount commentsUpdates
+          timedAvg PerCommentUpdateTime commentsLength $ updateComments commentsUpdates
   writeLog LogDebug $ "done processing " <> show habrPostId
   where
     selector (HttpExceptionRequest _ (StatusCodeException resp respContents))

@@ -27,7 +27,8 @@ data Metric tracker name where
   PageFetchTime               :: Metric Distribution "page.fetch_ms"
   NumPagesFetched             :: Metric Counter      "page.fetches_count"
   DeniedPagesCount            :: Metric Counter      "page.denied_count"
-  FetchedCommentsCount        :: Metric Distribution "page.comments_count"
+  FetchedCommentsCount        :: Metric Distribution "page.fetched_comments_count"
+  UpdatedCommentsCount        :: Metric Distribution "page.updated_comments_count"
 
   NewPostsCount               :: Metric Distribution "rss.newposts_count"
 
