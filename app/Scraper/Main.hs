@@ -93,20 +93,24 @@ main = do
     let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) SqlEnv { .. }
 
     case executionMode of
-      PollingMode { .. } -> do
+      PollingMode { .. } -> withUpdatesThread runFullMonad $ \ut -> do
         let rssPoller = runFullMonad pollRSS
         rssPoller
         rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller
 
+        let updatesChecker = runFullMonad $ checkUpdates ut
+        updatesChecker
+        checkUpdatesHandle <- asyncRepeatedly (1 / 60) updatesChecker
+
         let sigintHandler = Catch $ do
               stmtLogger LogDebug "shutting down..."
-              cancel rssPollHandle
+              mapM_ cancel [rssPollHandle, checkUpdatesHandle]
 
         void $ installHandler sigINT sigintHandler Nothing
         void $ installHandler sigTERM sigintHandler Nothing
 
-        void $ waitCatch rssPollHandle
-        stmtLogger LogDebug "RSS polling thread finished"
+        mapM_ waitCatch [rssPollHandle, checkUpdatesHandle]
+        stmtLogger LogDebug "Threads finished"
       BackfillMode { .. } -> do
         idsStrs <- lines <$> readFile inputFilePath
         let ids = read <$> idsStrs
