@@ -8,7 +8,6 @@ module Cohabr.Fetch
 , UpdatesThread
 , newUpdatesThread
 , withUpdatesThread
-, scheduleRefetch
 
 , checkUpdates
 ) where
