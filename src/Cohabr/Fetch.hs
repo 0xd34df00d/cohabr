@@ -25,6 +25,7 @@ import Control.Monad.Reader
 import Data.Functor
 import Data.List
 import Data.Monoid
+import Data.Ord
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
@@ -170,11 +171,11 @@ isRssNewer postPKey habrPostId = handle (\ex -> httpExHandler habrPostId "<!DOCT
         Nothing -> pure True
         Just lastStored -> pure $ abs (lastStored `diffLocalTime` utcTimeToMoscowTime lastRss) > 30
 
-checkUpdates :: MetricableSqlMonad m => UpdatesThread -> m ()
-checkUpdates ut = do
+checkUpdates :: MetricableSqlMonad m => [PostHabrId] -> UpdatesThread -> m ()
+checkUpdates blacklist ut = do
   dates <- timed UpdatesCandidatesQueryTime getPublishUpdateDates
   moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
-  let fullQueue = reverse $ sortOn (published) $ filter (shallUpdate moscowNow) dates
+  let fullQueue = filter ((`notElem` blacklist) . postHabrId) $ sortOn (Down . published) $ filter (shallUpdate moscowNow) dates
   track OutdatedItemsCount $ genericLength fullQueue
   let toRequest = take 100 fullQueue
   writeLog LogDebug $ "Scheduling updating " <> show toRequest

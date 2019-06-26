@@ -16,6 +16,7 @@ import System.Log.FastLogger
 import System.Posix.Signals
 import System.Remote.Monitoring
 
+import Cohabr.Db(PostHabrId)
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.SqlMonad
 import Cohabr.Fetch
@@ -33,7 +34,10 @@ withConnection dbName = bracket
 
 data ExecutionMode
   = BackfillMode { inputFilePath :: String }
-  | PollingMode { pollInterval :: Rational }
+  | PollingMode
+    { pollInterval :: Rational
+    , blacklistPath :: Maybe String
+    }
   deriving (Eq, Show)
 
 data Options = Options
@@ -59,7 +63,9 @@ options = Options
       , command "polling" $ info (polling <**> helper) $ progDesc "Execute the scraper in polling mode"
       ]
     backfill = BackfillMode <$> strOption (long "input-path" <> short 'i' <> help "\\n-separated post IDs file")
-    polling = PollingMode <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)" <> value 60 <> showDefault)
+    polling = PollingMode
+            <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)" <> value 60 <> showDefault)
+            <*> optional (strOption $ long "blacklist" <> help "Blacklist file with \\n-separated post IDs")
 
 mkLoggers :: Options -> IO (LoggerHolder, IO ())
 mkLoggers Options { .. } = do
@@ -80,6 +86,10 @@ mkLoggers Options { .. } = do
     levelStr LogWarn = "warn"
     levelStr LogError = "error"
 
+parseBlacklist :: Maybe String -> IO [PostHabrId]
+parseBlacklist Nothing = pure []
+parseBlacklist (Just path) = map (HabrId . read . head . words) . lines <$> readFile path
+
 main :: IO ()
 main = do
   opts@Options { .. } <- execParser $ info (options <**> helper) $ fullDesc <> progDesc "Habr scraper"
@@ -97,7 +107,9 @@ main = do
         rssPoller
         rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller
 
-        let updatesChecker = runFullMonad $ checkUpdates ut
+        blacklist <- parseBlacklist blacklistPath
+
+        let updatesChecker = runFullMonad $ checkUpdates blacklist ut
         updatesChecker
         checkUpdatesHandle <- asyncRepeatedly (1 / 60) updatesChecker
 
