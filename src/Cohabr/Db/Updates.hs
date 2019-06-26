@@ -73,11 +73,11 @@ updatePost pua@PostUpdateActions { .. } | isNullPostUpdate pua = pure ()
     let postUpdates' = postUpdates <> catMaybes [
             (\verId -> UpdateField { accessor = pCurrentVersion, newVal = verId }) <$> maybeNewVersionId
           ]
-    currentRow <- runUpdateReturningOne $ update
-                    (cPosts cohabrDb)
-                    (toUpdaterConcat postUpdates')
-                    (\post -> pId post ==. val_ postId)
-    let curVerId = pCurrentVersion currentRow
+    unless (null postUpdates') $ void $ runUpdateReturningOne $ update
+        (cPosts cohabrDb)
+        (toUpdaterConcat postUpdates')
+        (\post -> pId post ==. val_ postId)
+    Just curVerId <- getCurrentPostVersion postId
     updateVersionHubs curVerId isNewVersion hubsDiff
     updateVersionTags curVerId isNewVersion tagsDiff
 

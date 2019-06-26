@@ -24,6 +24,10 @@ findPostByHabrId habrId = runPg $ runSelectReturningOne $ select query
       postVersion <- filter_ (\postVersion -> pvId postVersion ==. pCurrentVersion post) $ all_ $ cPostsVersions cohabrDb
       pure (post, postVersion)
 
+getCurrentPostVersion :: SqlMonad m => PostPKey -> m (Maybe PostVersionPKey)
+getCurrentPostVersion postId = runPg $ runSelectReturningOne $ select query
+  where query = fmap pCurrentVersion $ filter_ (\post -> pId post ==. val_ postId) $ all_ $ cPosts cohabrDb
+
 getPostVersionHubs :: SqlMonad m => PostVersionPKey -> m [(PostHub, Hub)]
 getPostVersionHubs postVersion = runPg $ runSelectReturningList $ select query
   where
