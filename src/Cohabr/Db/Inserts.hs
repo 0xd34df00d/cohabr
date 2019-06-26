@@ -31,7 +31,7 @@ import qualified Habr.Types as HT
 
 insertPost :: SqlMonad m => PostHabrId -> HT.Post -> m PostPKey
 insertPost habrId post@HT.Post { .. } = do
-  userId <- ensureUserExists user
+  userId <- withTransactionPg $ ensureUserExists user
   ensureHubsExist hubs
   withTransactionPg $ do
     versionId <- fmap pvId $ runInsertReturningOne $ insert (cPostsVersions cohabrDb) $
@@ -80,8 +80,8 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
 
-ensureUserExists :: SqlMonad m => HT.UserInfo -> m UserPKey
-ensureUserExists HT.UserInfo { .. } = runPg $ do
+ensureUserExists :: HT.UserInfo -> Pg UserPKey
+ensureUserExists HT.UserInfo { .. } = do
   maybeId <- runSelectReturningOne $ select query
   case maybeId of
     Just userId -> pure userId
@@ -148,7 +148,7 @@ insertSingleCommentWParent :: SqlMonad m => PostPKey -> HT.Comment -> Maybe Comm
 insertSingleCommentWParent postId comment parentCommentId = do
   userId <- case HT.contents comment of
     HT.CommentDeleted -> pure Nothing
-    HT.CommentExisting { .. } -> Just <$> ensureUserExists user
+    HT.CommentExisting { .. } -> Just <$> runPg (ensureUserExists user)
   let rec = makeCommentRecord postId parentCommentId userId comment
   runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
