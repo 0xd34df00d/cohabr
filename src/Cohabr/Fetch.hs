@@ -159,7 +159,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
        else whenM (isRssNewer postPKey postHabrId) $ refetchPost postHabrId
     bumpPostQueryTime postPKey
 
-  threadDelay 1000000
+  threadDelay 100000
 
 isRssNewer :: MetricableSqlMonad m => PostPKey -> PostHabrId -> m Bool
 isRssNewer postPKey habrPostId = handle (\ex -> httpExHandler habrPostId "<!DOCTYPE" ex $> False) $ do
