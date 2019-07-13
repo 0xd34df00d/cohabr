@@ -89,9 +89,7 @@ instance GCompare SomeMetric where
 
 data MetricsState = MetricsState
   { _server :: Server
-  , _counters :: M.Map DynOrd Counter
-  , _distributions :: M.Map DynOrd Distribution
-  , _gauges :: M.Map DynOrd Gauge
+  , _metrics :: DM.DMap SomeMetric Identity
   }
 
 $(makeLenses 'MetricsState)
@@ -107,7 +105,7 @@ newtype MetricsStore = MetricsStore { mReqQueue :: TQueue MetricRequest }
 newMetricsStore :: Server -> IO (MetricsStore, IO ())
 newMetricsStore srv = do
   queue <- newTQueueIO
-  threadId <- forkIO $ act queue $ MetricsState srv mempty mempty mempty
+  threadId <- forkIO $ act queue $ MetricsState srv mempty
   pure (MetricsStore queue, killThread threadId)
   where
     act queue state = do
@@ -121,13 +119,13 @@ newMetricsStore srv = do
               -> MVar tracker
               -> IO MetricsState
     handleReq state metric mvar = do
-      let metricDyn = toDyn metric
-      (tracker, state') <- case M.lookup metricDyn $ state ^.trackerMap of
-        Just existing -> pure (existing, state)
+      let asSome = MkSomeMetric metric
+      (tracker, state') <- case DM.lookup asSome $ _metrics state of
+        Just existing -> pure (runIdentity existing, state)
         Nothing -> do
           let trackerName = symbolVal (Proxy :: Proxy name)
           newTracker <- createTracker (T.pack trackerName) $ serverMetricStore $ state^.server
-          pure (newTracker, state & trackerMap %~ M.insert metricDyn newTracker)
+          pure (newTracker, state { _metrics = DM.insert asSome (Identity newTracker) $ _metrics state })
       putMVar mvar tracker
       pure state'
 
@@ -140,25 +138,21 @@ withMetricsStore srv f = bracket
 class Typeable tracker => TrackerLike tracker where
   type TrackAction tracker (m :: * -> *) = r | r -> m
   track :: (MonadMetrics m, KnownSymbol name, Typeable metric, Ord (metric tracker name)) => metric tracker name -> TrackAction tracker m
-  trackerMap :: Lens' MetricsState (M.Map DynOrd tracker)
   createTracker :: T.Text -> Store -> IO tracker
 
 instance TrackerLike Counter where
   type TrackAction Counter m = m ()
   track metric = getMetric metric >>= liftIO . TC.inc
-  trackerMap = counters
   createTracker = createCounter
 
 instance TrackerLike Distribution where
   type TrackAction Distribution m = Double -> m ()
   track metric val = getMetric metric >>= \distr -> liftIO $ TD.add distr val
-  trackerMap = distributions
   createTracker = createDistribution
 
 instance TrackerLike Gauge where
   type TrackAction Gauge m = Int64 -> m ()
   track metric val = getMetric metric >>= \gauge -> liftIO $ TG.set gauge val
-  trackerMap = gauges
   createTracker = createGauge
 
 getMetricStore :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
