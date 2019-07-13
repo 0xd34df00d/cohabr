@@ -64,8 +64,8 @@ instance Ord (Dyn Ord) where
 type DynOrd = Dyn Ord
 
 data SomeMetric tracker where
-  -- TODO the constraint shall be TrackerLike
-  MkSomeMetric :: (Typeable metric, Typeable tracker, KnownSymbol name, Ord (metric tracker name)) => metric tracker name -> SomeMetric tracker
+  MkSomeMetric :: (Typeable metric, TrackerLike tracker, KnownSymbol name, Ord (metric tracker name))
+               => metric tracker name -> SomeMetric tracker
 
 deriving instance Typeable (SomeMetric t)
 
