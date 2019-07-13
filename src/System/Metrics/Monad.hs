@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds, RankNTypes, GADTs, PolyKinds, TypeFamilyDependencies, TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module System.Metrics.Monad
 ( MetricsStore
@@ -149,6 +150,20 @@ instance TrackerLike Gauge where
   type TrackAction Gauge m = Int64 -> m ()
   track metric val = getMetric metric >>= \gauge -> liftIO $ TG.set gauge val
   createTracker = createGauge
+
+newtype DistrGauge = DistrGauge (Distribution, Gauge)
+
+instance TrackerLike DistrGauge where
+  type TrackAction DistrGauge m = Int64 -> m ()
+  track metric val = do
+    DistrGauge (distr, gauge) <- getMetric metric
+    liftIO $ do
+      TG.add gauge val
+      TD.add distr $ fromIntegral val
+  createTracker name store = do
+    d <- createDistribution (name <> "_distr") store
+    g <- createGauge (name <> "_total") store
+    pure $ DistrGauge (d, g)
 
 getMetricStore :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
                => MetricsStore
