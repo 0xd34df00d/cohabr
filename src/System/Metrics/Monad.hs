@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds, RankNTypes, GADTs, PolyKinds, TypeFamilyDependencies, TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module System.Metrics.Monad
 ( MetricsStore
@@ -36,8 +35,6 @@ import Data.Typeable(eqT)
 import Data.Type.Equality
 import GHC.Int
 import GHC.TypeLits
-import Lens.Micro
-import Lens.Micro.TH
 import System.Remote.Monitoring
 import System.Metrics
 import System.Metrics.Counter as TC
@@ -88,11 +85,9 @@ instance GCompare SomeMetric where
         GT -> GGT
 
 data MetricsState = MetricsState
-  { _server :: Server
-  , _metrics :: DM.DMap SomeMetric Identity
+  { server :: Server
+  , metrics :: DM.DMap SomeMetric Identity
   }
-
-$(makeLenses 'MetricsState)
 
 data MetricRequest where
   MetricRequest :: (TrackerLike tracker, KnownSymbol name, Typeable metric, Ord (metric tracker name))
@@ -120,12 +115,12 @@ newMetricsStore srv = do
               -> IO MetricsState
     handleReq state metric mvar = do
       let asSome = MkSomeMetric metric
-      (tracker, state') <- case DM.lookup asSome $ _metrics state of
+      (tracker, state') <- case DM.lookup asSome $ metrics state of
         Just existing -> pure (runIdentity existing, state)
         Nothing -> do
           let trackerName = symbolVal (Proxy :: Proxy name)
-          newTracker <- createTracker (T.pack trackerName) $ serverMetricStore $ state^.server
-          pure (newTracker, state { _metrics = DM.insert asSome (Identity newTracker) $ _metrics state })
+          newTracker <- createTracker (T.pack trackerName) $ serverMetricStore $ server state
+          pure (newTracker, state { metrics = DM.insert asSome (Identity newTracker) $ metrics state })
       putMVar mvar tracker
       pure state'
 
