@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, RankNTypes, GADTs, TypeFamilies, PolyKinds, TypeFamilyDependencies #-}
+{-# LANGUAGE DataKinds, RankNTypes, GADTs, PolyKinds, TypeFamilyDependencies #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
