@@ -26,6 +26,8 @@ dependencies:
 - bytestring
 - containers
 - deepseq
+- dependent-map
+- dependent-sum
 - dom-selector
 - either
 - ekg
