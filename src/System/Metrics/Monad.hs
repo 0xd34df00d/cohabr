@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, RankNTypes, GADTs, PolyKinds, TypeFamilyDependencies #-}
+{-# LANGUAGE DataKinds, RankNTypes, GADTs, PolyKinds, TypeFamilyDependencies, TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, ConstraintKinds, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -21,7 +21,7 @@ module System.Metrics.Monad
 , Metrics
 ) where
 
-import qualified Data.Map.Strict as M
+import qualified Data.Dependent.Map as DM
 import qualified Data.Text as T
 import Control.Monad.Catch
 import Control.Monad.Identity
@@ -30,7 +30,10 @@ import Control.Monad.Reader
 import Control.Monad.STM
 import Control.Concurrent
 import Control.Concurrent.STM.TQueue
+import Data.GADT.Compare
 import Data.Proxy
+import Data.Typeable(eqT)
+import Data.Type.Equality
 import GHC.Int
 import GHC.TypeLits
 import Lens.Micro
@@ -62,6 +65,27 @@ instance Ord (Dyn Ord) where
   compare d1 d2 = withDyns d1 d2 compare compare
 
 type DynOrd = Dyn Ord
+
+data SomeMetric tracker where
+  -- TODO the constraint shall be TrackerLike
+  MkSomeMetric :: (Typeable metric, Typeable tracker, KnownSymbol name, Ord (metric tracker name)) => metric tracker name -> SomeMetric tracker
+
+deriving instance Typeable (SomeMetric t)
+
+instance GEq SomeMetric where
+  geq (MkSomeMetric _) (MkSomeMetric _) = eqT
+
+instance GCompare SomeMetric where
+  gcompare sm1@(MkSomeMetric (m1 :: mTy1 tTy1 nTy1)) sm2@(MkSomeMetric (m2 :: mTy2 tTy2 nTy2)) =
+    case eqT :: Maybe (tTy1 :~: tTy2) of
+      Just Refl -> case compare (toDyn m1 :: DynOrd) (toDyn m2) of
+        LT -> GLT
+        EQ -> GEQ
+        GT -> GGT
+      Nothing -> case compare (someTypeRep sm1) (someTypeRep sm2) of
+        LT -> GLT
+        EQ -> error "SomeTypeReps are equal though eqT proved them wrong"
+        GT -> GGT
 
 data MetricsState = MetricsState
   { _server :: Server
