@@ -46,6 +46,7 @@ dependencies:
 - microlens
 - microlens-th
 - mtl
+- monad-metrics-extensible
 - postgresql-simple
 - safe
 - stm

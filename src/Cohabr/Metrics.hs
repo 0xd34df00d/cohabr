@@ -6,7 +6,7 @@ module Cohabr.Metrics
 , trackLogging
 , timed
 , timedAvg
-, module SMM
+, module SME
 ) where
 
 import Control.Monad.IO.Class
@@ -19,7 +19,7 @@ import System.Metrics.Gauge as TG
 import Type.Reflection
 
 import Cohabr.Db.SqlMonad
-import System.Metrics.Monad as SMM
+import System.Metrics.Extensible as SME
 
 data Metric tracker name where
   PageContentsParseTime       :: Metric Distribution "page.parse.contents_ms"
