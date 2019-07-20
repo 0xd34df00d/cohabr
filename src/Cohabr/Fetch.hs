@@ -219,7 +219,8 @@ thresholdFor dt | dt < 5 * minute = 2 * minute
                 | dt < 2 * week = day
                 | dt < 4 * week = 2 * day
                 | dt < year = week
-                | otherwise = month
+                | dt < 2 * year = month
+                | otherwise = 2 * month
 
 minute, hour, day, week, month, year :: NominalDiffTime
 minute = 60
