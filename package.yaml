@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/0xd3
 
 dependencies:
 - base >= 4.7 && < 5
+- async
 - beam-core
 - beam-postgres
 - bytestring
@@ -75,7 +76,6 @@ executables:
     - -with-rtsopts=-N
     - -with-rtsopts=-T
     dependencies:
-    - async
     - cohabr
     - fast-logger
     - fixed-timestep
