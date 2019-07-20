@@ -39,6 +39,7 @@ data ExecutionMode
     { pollInterval :: Rational
     , blacklistPath :: Maybe String
     , updatesConfig :: UpdatesConfig
+    , httpConfig :: HttpConfig
     }
   deriving (Eq, Show)
 
@@ -69,9 +70,12 @@ options = Options
             <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)" <> value 60 <> showDefault)
             <*> optional (strOption $ long "blacklist" <> help "Blacklist file with \\n-separated post IDs")
             <*> updatesConfigParser
+            <*> httpConfigParser
     updatesConfigParser = UpdatesConfig
                         <$> option auto (long "update-fetch-jobs" <> help "Max parallel fetch jobs for the existing posts updates" <> value 4 <> showDefault)
                         <*> option auto (long "max-updates-queue-size" <> help "Max queue size for the update jobs" <> value (pendingUpdatesQueueSize def) <> showDefault)
+    httpConfigParser = HttpConfig
+                     <$> option auto (long "http-timeout" <> help "Timeout for HTTP connections, s" <> value 120 <> showDefault)
 
 mkLoggers :: Options -> IO (LoggerHolder, IO ())
 mkLoggers Options { .. } = do

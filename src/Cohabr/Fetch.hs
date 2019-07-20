@@ -11,6 +11,7 @@ module Cohabr.Fetch
 , withUpdatesThread
 
 , UpdatesConfig(..)
+, HttpConfig(..)
 
 , checkUpdates
 ) where
@@ -55,6 +56,10 @@ import Habr.Parser
 import Habr.Types
 import Habr.RSS
 import Habr.Util
+
+newtype HttpConfig = HttpConfig
+  { httpTimeout :: Int
+  } deriving (Eq, Ord, Show)
 
 type MetricableSqlMonad m = (SqlMonad m, MonadCatch m, MonadMetrics m)
 
