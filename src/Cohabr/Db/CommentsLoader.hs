@@ -26,7 +26,7 @@ data LoadedComments = LoadedComments
   , deletedSet :: HS.HashSet CommentHabrId
   } deriving (Eq, Show)
 
-loadComments :: SqlMonad m => HT.CommentContents -> PostPKey -> m LoadedComments
+loadComments :: SqlMonad r m => HT.CommentContents -> PostPKey -> m LoadedComments
 loadComments defaultContents postId = do
   storedComments <- getPostComments postId
   let authors = nubOrd $ mapMaybe cAuthor storedComments

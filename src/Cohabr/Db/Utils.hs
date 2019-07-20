@@ -49,7 +49,7 @@ runUpdateReturningOne :: (HasCallStack,
                       => SqlUpdate be table -> m (table Identity)
 runUpdateReturningOne f = runUpdateReturningList f >>= expectSingleResult
 
-ensureHubsExist :: SqlMonad m => [HT.Hub] -> m ()
+ensureHubsExist :: SqlMonad r m => [HT.Hub] -> m ()
 ensureHubsExist hubs = runPg $ runInsert $ BPG.insert (cHubs cohabrDb) query conflictIgnore
   where
     query = insertValues $ (\h -> Hub { hId = makeHubId h, hName = HT.hubName h }) <$> hubs

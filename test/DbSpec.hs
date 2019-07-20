@@ -316,7 +316,7 @@ commentTests = do
       commentsTree `shouldBe` changedTree
       deletedSet `shouldBe` [HabrId 12, HabrId 13, HabrId 15]
 
-getPostIdByHabrId :: SqlMonad m => PostHabrId -> m PostPKey
+getPostIdByHabrId :: SqlMonad r m => PostHabrId -> m PostPKey
 getPostIdByHabrId habrId = pId . fst . fromJust <$> findPostByHabrId habrId
 
 spec :: Spec

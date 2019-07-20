@@ -29,7 +29,7 @@ import Cohabr.Db.SqlMonad
 import Cohabr.Db.Utils
 import qualified Habr.Types as HT
 
-insertPost :: SqlMonad m => PostHabrId -> HT.Post -> m PostPKey
+insertPost :: SqlMonad r m => PostHabrId -> HT.Post -> m PostPKey
 insertPost habrId post@HT.Post { .. } = do
   userId <- withTransactionPg $ ensureUserExists user
   ensureHubsExist hubs
@@ -133,7 +133,7 @@ makeAvatarRecord userId link = UserAvatar
     linkStr = T.unpack $ HT.getUrl link
     smallLink = T.pack $ replaceBaseName linkStr $ takeBaseName linkStr <> "_small"
 
-insertSingleComment :: SqlMonad m => PostPKey -> HT.Comment -> m CommentPKey
+insertSingleComment :: SqlMonad r m => PostPKey -> HT.Comment -> m CommentPKey
 insertSingleComment postId comment = do
   parentCommentId <- case HT.parentId comment of
     0 -> pure Nothing
@@ -144,7 +144,7 @@ insertSingleComment postId comment = do
       pure found
   insertSingleCommentWParent postId comment parentCommentId
 
-insertSingleCommentWParent :: SqlMonad m => PostPKey -> HT.Comment -> Maybe CommentPKey -> m CommentPKey
+insertSingleCommentWParent :: SqlMonad r m => PostPKey -> HT.Comment -> Maybe CommentPKey -> m CommentPKey
 insertSingleCommentWParent postId comment parentCommentId = do
   userId <- case HT.contents comment of
     HT.CommentDeleted -> pure Nothing
@@ -153,12 +153,12 @@ insertSingleCommentWParent postId comment parentCommentId = do
   runPg $ fmap cId $ runInsertReturningOne $
     insert (cComments cohabrDb) $ insertExpressions [rec]
 
-insertCommentTree :: SqlMonad m => PostPKey -> HT.Comments -> m ()
+insertCommentTree :: SqlMonad r m => PostPKey -> HT.Comments -> m ()
 insertCommentTree postId = mapM_ $ \Node { .. } -> do
   thisId <- insertSingleComment postId rootLabel
   insertCommentTreeWParent postId thisId subForest
 
-insertCommentTreeWParent :: SqlMonad m => PostPKey -> CommentPKey -> HT.Comments -> m ()
+insertCommentTreeWParent :: SqlMonad r m => PostPKey -> CommentPKey -> HT.Comments -> m ()
 insertCommentTreeWParent postId parentId = mapM_ $ \Node { .. } -> do
   thisId <- insertSingleCommentWParent postId rootLabel (Just parentId)
   insertCommentTreeWParent postId thisId subForest

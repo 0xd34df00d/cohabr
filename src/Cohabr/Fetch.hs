@@ -61,11 +61,11 @@ newtype HttpConfig = HttpConfig
   { httpTimeout :: Int
   } deriving (Eq, Ord, Show)
 
-type MetricableSqlMonad m = (SqlMonad m, MonadCatch m, MonadMetrics m)
+type MetricableSqlMonad r m = (SqlMonad r m, Has HttpConfig r, MonadCatch m, MonadMetrics m)
 
-type MetricableSqlMonadRunner = forall a. (forall m. MetricableSqlMonad m => m a) -> IO a
+type MetricableSqlMonadRunner = forall a. (forall r m. MetricableSqlMonad r m => m a) -> IO a
 
-httpExHandler :: MetricableSqlMonad m => PostHabrId -> BS.ByteString -> HttpException -> m ()
+httpExHandler :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> HttpException -> m ()
 httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException resp respContents))
   | statusCode (responseStatus resp) == 403
   , marker `BS.isInfixOf` respContents      = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
@@ -74,12 +74,12 @@ httpExHandler _ _ ex = throwM ex
 
 data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
 
-httpWithTimeout :: (MonadReader HttpConfig m, MonadIO m) => String -> m LBS.ByteString
+httpWithTimeout :: (MonadReader r m, Has HttpConfig r, MonadIO m) => String -> m LBS.ByteString
 httpWithTimeout url = do
-  timeout <- asks httpTimeout
+  timeout <- asks $ httpTimeout . getPart
   either (const $ throw HttpTimeout) id <$> liftIO (threadDelay timeout `race` simpleHttp url)
 
-refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
+refetchPost :: MetricableSqlMonad r m => PostHabrId -> m ()
 refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://habr.com/ru/users/") $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
 
@@ -116,9 +116,9 @@ refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://hab
   where
     force' = liftIO . evaluate . force
 
-pollRSS :: MetricableSqlMonad m => m ()
+pollRSS :: MetricableSqlMonad r m => m ()
 pollRSS = do
-  rss <- simpleHttp "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
+  rss <- httpWithTimeout "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
   case recentArticles rss of
     Nothing -> undefined
     Just ids -> do
@@ -190,7 +190,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
 
   threadDelay 100000
 
-isRssNewer :: MetricableSqlMonad m => PostPKey -> PostHabrId -> m Bool
+isRssNewer :: MetricableSqlMonad r m => PostPKey -> PostHabrId -> m Bool
 isRssNewer postPKey habrPostId = handle (\ex -> httpExHandler habrPostId "<!DOCTYPE" ex $> False) $ do
   rss <- simpleHttp $ rssUrlForPostId $ getHabrId habrPostId
   case lastCommentDate rss of
@@ -201,7 +201,7 @@ isRssNewer postPKey habrPostId = handle (\ex -> httpExHandler habrPostId "<!DOCT
         Nothing -> pure True
         Just lastStored -> pure $ abs (lastStored `diffLocalTime` utcTimeToMoscowTime lastRss) > 30
 
-checkUpdates :: MetricableSqlMonad m => [PostHabrId] -> UpdatesThread -> m ()
+checkUpdates :: MetricableSqlMonad r m => [PostHabrId] -> UpdatesThread -> m ()
 checkUpdates blacklist ut = do
   dates <- timed UpdatesCandidatesQueryTime getPublishUpdateDates
   moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime

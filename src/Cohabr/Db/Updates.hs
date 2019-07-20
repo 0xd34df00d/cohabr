@@ -63,7 +63,7 @@ isNullPostUpdate PostUpdateActions { .. } = null postUpdates
                                          && isNullDiff hubsDiff && isNullDiff tagsDiff
                                          && isNothing newPostVersion
 
-updatePost :: SqlMonad m => PostUpdateActions -> m ()
+updatePost :: SqlMonad r m => PostUpdateActions -> m ()
 updatePost pua@PostUpdateActions { .. } | isNullPostUpdate pua = pure ()
                                         | otherwise = do
   ensureHubsExist $ added hubsDiff
@@ -81,7 +81,7 @@ updatePost pua@PostUpdateActions { .. } | isNullPostUpdate pua = pure ()
     updateVersionHubs curVerId isNewVersion hubsDiff
     updateVersionTags curVerId isNewVersion tagsDiff
 
-bumpPostQueryTime :: SqlMonad m => PostPKey -> m ()
+bumpPostQueryTime :: SqlMonad r m => PostPKey -> m ()
 bumpPostQueryTime postId = runPg $ runUpdate $ update
   (cPosts cohabrDb)
   (\post -> pLastQueried post <-. now_)
@@ -99,12 +99,12 @@ updatePostVersion postId (Just RawPostVersion { .. }) =
       , pvContent = val_ rawPVText
       }
 
-updateVersionHubs :: (SqlMonad m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Hub -> m ()
+updateVersionHubs :: (SqlMonad r m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Hub -> m ()
 updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionHubs postVersionId allNew
                                                              | otherwise = do
   insertVersionHubs postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ reader stmtLogger >>=
+  unless (remCnt == length removed) $ reader (stmtLogger . getPart) >>=
       \logger -> logger LogWarn [i|Unexpected removed hubs count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
@@ -114,12 +114,12 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                       (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
                       phPostVersion)      -- TODO if we can count better
 
-updateVersionTags :: (SqlMonad m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Tag -> m ()
+updateVersionTags :: (SqlMonad r m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Tag -> m ()
 updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionTags postVersionId allNew
                                                              | otherwise = do
   insertVersionTags postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ reader stmtLogger >>=
+  unless (remCnt == length removed) $ reader (stmtLogger . getPart) >>=
       \logger -> logger LogWarn [i|Unexpected removed tags count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
@@ -137,7 +137,7 @@ data StoredPostInfo = StoredPostInfo
   , storedCommentShorts :: [(CommentHabrId, ShortCommentInfo)]
   }
 
-getStoredPostInfo :: SqlMonad m => PostHabrId -> m (Maybe StoredPostInfo)
+getStoredPostInfo :: SqlMonad r m => PostHabrId -> m (Maybe StoredPostInfo)
 getStoredPostInfo habrId = do
   maybePPV <- findPostByHabrId habrId
   case maybePPV of
@@ -188,7 +188,7 @@ data CommentsUpdatesActions = CommentsUpdatesActions
 newCommentsCount :: CommentsUpdatesActions -> Int
 newCommentsCount cua = getSum $ mconcat $ Sum . length <$> newCommentsSubtrees cua
 
-updateComments :: forall m. SqlMonad m => CommentsUpdatesActions -> m ()
+updateComments :: forall r m. SqlMonad r m => CommentsUpdatesActions -> m ()
 updateComments CommentsUpdatesActions { .. } = withTransactionPg `inReader` do
   insertCommentTree commentsPostId newCommentsSubtrees
   currentCommentsContents <- fmap HM.fromList $ getCommentsContents $ fst <$> possiblyChangedComments
@@ -206,7 +206,7 @@ updateComments CommentsUpdatesActions { .. } = withTransactionPg `inReader` do
     (\comm -> cDeleted comm <-. val_ True)
     (\comm -> cId comm `in_` fmap val_ deletedComments)
 
-updateCommentText :: (MonadBeam Postgres m, SqlMonad m) => CommentPKey -> T.Text -> m ()
+updateCommentText :: (MonadBeam Postgres m, SqlMonad r m) => CommentPKey -> T.Text -> m ()
 updateCommentText commentId body = runUpdate $ update
                                     (cComments cohabrDb)
                                     (\comm -> (cText comm <-. val_ (Just body)) <> (cChanged comm <-. val_ True))

@@ -1,11 +1,12 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RankNTypes, ConstraintKinds, FlexibleContexts #-}
+{-# LANGUAGE RankNTypes, ConstraintKinds, FlexibleContexts, MultiParamTypeClasses, FlexibleInstances #-}
 
 module Cohabr.Db.SqlMonad
 ( SqlEnv(..)
 , LogMessageContext(..)
 , Logger
 , LoggerHolder(..)
+, Has(..)
 , SqlMonad
 , withTransactionPg
 , runPg
@@ -30,20 +31,24 @@ data SqlEnv = SqlEnv
   , stmtLogger :: Logger
   }
 
-type SqlMonad m = (MonadReader SqlEnv m, MonadIO m)
+class Has part r where
+  getPart :: r -> part
 
-withTransactionPg :: SqlMonad m => Pg a -> m a
+
+type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
+
+withTransactionPg :: SqlMonad r m => Pg a -> m a
 withTransactionPg pg = do
-  SqlEnv { .. } <- ask
+  SqlEnv { .. } <- asks getPart
   liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
 
-runPg :: SqlMonad m => Pg a -> m a
+runPg :: SqlMonad r m => Pg a -> m a
 runPg pg = do
-  SqlEnv { .. } <- ask
+  SqlEnv { .. } <- asks getPart
   liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
 
 inReader :: MonadReader r mr => (m a -> mr b) -> ReaderT r m a -> mr b
 inReader runner act = ask >>= \env -> runner $ runReaderT act env
 
-writeLog :: (HasCallStack, SqlMonad m) => LogMessageContext -> String -> m ()
-writeLog ctx str = reader stmtLogger >>= \logger -> logger ctx str
+writeLog :: (HasCallStack, SqlMonad r m) => LogMessageContext -> String -> m ()
+writeLog ctx str = reader (stmtLogger . getPart) >>= \logger -> logger ctx str

@@ -12,11 +12,11 @@ import Control.Monad
 import Cohabr.Db
 import Cohabr.Db.SqlMonad
 
-selectMissingPosts :: SqlMonad m => [PostHabrId] -> m [PostHabrId]
+selectMissingPosts :: SqlMonad r m => [PostHabrId] -> m [PostHabrId]
 selectMissingPosts candidates = (candidates \\) <$> runPg (runSelectReturningList $ select query)
   where query = filter_ (`in_` (val_ <$> candidates)) $ fmap pSourceId $ all_ $ cPosts cohabrDb
 
-findPostByHabrId :: SqlMonad m => PostHabrId -> m (Maybe (Post, PostVersion))
+findPostByHabrId :: SqlMonad r m => PostHabrId -> m (Maybe (Post, PostVersion))
 findPostByHabrId habrId = runPg $ runSelectReturningOne $ select query
   where
     query = do
@@ -24,11 +24,11 @@ findPostByHabrId habrId = runPg $ runSelectReturningOne $ select query
       postVersion <- filter_ (\postVersion -> pvId postVersion ==. pCurrentVersion post) $ all_ $ cPostsVersions cohabrDb
       pure (post, postVersion)
 
-getCurrentPostVersion :: SqlMonad m => PostPKey -> m (Maybe PostVersionPKey)
+getCurrentPostVersion :: SqlMonad r m => PostPKey -> m (Maybe PostVersionPKey)
 getCurrentPostVersion postId = runPg $ runSelectReturningOne $ select query
   where query = fmap pCurrentVersion $ filter_ (\post -> pId post ==. val_ postId) $ all_ $ cPosts cohabrDb
 
-getPostVersionHubs :: SqlMonad m => PostVersionPKey -> m [(PostHub, Hub)]
+getPostVersionHubs :: SqlMonad r m => PostVersionPKey -> m [(PostHub, Hub)]
 getPostVersionHubs postVersion = runPg $ runSelectReturningList $ select query
   where
     query = do
@@ -36,23 +36,23 @@ getPostVersionHubs postVersion = runPg $ runSelectReturningList $ select query
       hub <- filter_ (\h -> hId h ==. phHub postHub) $ all_ $ cHubs cohabrDb
       pure (postHub, hub)
 
-getPostVersionTags :: SqlMonad m => PostVersionPKey -> m [PostTag]
+getPostVersionTags :: SqlMonad r m => PostVersionPKey -> m [PostTag]
 getPostVersionTags postVersion = runPg $ runSelectReturningList $ select query
   where query = filter_ (\pt -> ptPostVersion pt ==. val_ postVersion) $ all_ $ cPostsTags cohabrDb
 
-getPostFlags :: SqlMonad m => PostPKey -> m [PostFlag]
+getPostFlags :: SqlMonad r m => PostPKey -> m [PostFlag]
 getPostFlags postId = runPg $ runSelectReturningList $ select query
   where query = filter_ (\pf -> pfPost pf ==. val_ postId) $ all_ $ cPostsFlags cohabrDb
 
-findCommentIdByHabrId :: SqlMonad m => PostPKey -> CommentHabrId -> m (Maybe CommentPKey)
+findCommentIdByHabrId :: SqlMonad r m => PostPKey -> CommentHabrId -> m (Maybe CommentPKey)
 findCommentIdByHabrId postPKey habrId = runPg $ runSelectReturningOne $ select query
   where query = fmap cId $ filter_ (\comm -> cPostId comm ==. val_ postPKey &&. cSourceId comm ==. val_ habrId) $ all_ $ cComments cohabrDb
 
-getPostComments :: SqlMonad m => PostPKey -> m [Comment]
+getPostComments :: SqlMonad r m => PostPKey -> m [Comment]
 getPostComments postId = runPg $ runSelectReturningList $ select query
   where query = filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
 
-getUserAvatar :: SqlMonad m => UserPKey -> m (Maybe UserAvatar)
+getUserAvatar :: SqlMonad r m => UserPKey -> m (Maybe UserAvatar)
 getUserAvatar userId = runPg $ runSelectReturningOne $ select query
   where query = filter_ (\ua -> uaUser ua ==. val_ userId) $ all_ $ cUserAvatars cohabrDb
 
@@ -63,14 +63,14 @@ data ShortCommentInfo = ShortCommentInfo
   , isDeleted :: Bool
   }
 
-getPostCommentsShorts :: SqlMonad m => PostPKey -> m [(CommentHabrId, ShortCommentInfo)]
+getPostCommentsShorts :: SqlMonad r m => PostPKey -> m [(CommentHabrId, ShortCommentInfo)]
 getPostCommentsShorts postId = fmap (second toShortInfo <$>) $ runPg $ runSelectReturningList $ select query
   where
     query = fmap toShortTuple $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
     toShortTuple Comment { .. } = (cSourceId, (cId, cScorePlus, cScoreMinus, cDeleted))
     toShortInfo (commentPKey, posVotes, negVotes, isDeleted) = ShortCommentInfo { .. }
 
-getCommentsContents :: SqlMonad m => [CommentPKey] -> m [(CommentPKey, Maybe T.Text)]
+getCommentsContents :: SqlMonad r m => [CommentPKey] -> m [(CommentPKey, Maybe T.Text)]
 getCommentsContents commentIds = runPg $ runSelectReturningList $ select query
   where query = fmap (cId &&& cText) $ filter_ (\comm -> cId comm `in_` fmap val_ commentIds) $ all_ $ cComments cohabrDb
 
@@ -81,14 +81,14 @@ data UpdateInfo = UpdateInfo
   , lastQueried :: LocalTime
   } deriving (Eq, Ord, Show)
 
-getPublishUpdateDates :: SqlMonad m => m [UpdateInfo]
+getPublishUpdateDates :: SqlMonad r m => m [UpdateInfo]
 getPublishUpdateDates = fmap (toUpdateInfo <$>) $ runPg $ runSelectReturningList $ select query
   where
     query = fmap toShortTuple $ all_ $ cPosts cohabrDb
     toShortTuple Post { .. } = (pId, pSourceId, pPublished, pLastQueried)
     toUpdateInfo (postPKey, postHabrId, published, lastQueried) = UpdateInfo { .. }
 
-getLastCommentDate :: SqlMonad m => PostPKey -> m (Maybe LocalTime)
+getLastCommentDate :: SqlMonad r m => PostPKey -> m (Maybe LocalTime)
 getLastCommentDate postId = fmap (join . join) $ runPg $ runSelectReturningOne $ select query
   where
     query = aggregate_ (max_ . cDate) $ filter_ (\comm -> cPostId comm ==. val_ postId) $ all_ $ cComments cohabrDb
