@@ -38,6 +38,7 @@ data ExecutionMode
   | PollingMode
     { pollInterval :: Rational
     , blacklistPath :: Maybe String
+    , updatesConfig :: UpdatesConfig
     }
   deriving (Eq, Show)
 
@@ -67,6 +68,10 @@ options = Options
     polling = PollingMode
             <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)" <> value 60 <> showDefault)
             <*> optional (strOption $ long "blacklist" <> help "Blacklist file with \\n-separated post IDs")
+            <*> updatesConfigParser
+    updatesConfigParser = UpdatesConfig
+                        <$> option auto (long "update-fetch-jobs" <> help "Max parallel fetch jobs for the existing posts updates" <> value 4 <> showDefault)
+                        <*> option auto (long "max-updates-queue-size" <> help "Max queue size for the update jobs" <> value (pendingUpdatesQueueSize def) <> showDefault)
 
 mkLoggers :: Options -> IO (LoggerHolder, IO ())
 mkLoggers Options { .. } = do
@@ -103,7 +108,7 @@ main = do
     let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) SqlEnv { .. }
 
     case executionMode of
-      PollingMode { .. } -> withUpdatesThread def runFullMonad $ \ut -> do
+      PollingMode { .. } -> withUpdatesThread updatesConfig runFullMonad $ \ut -> do
         let rssPoller = runFullMonad pollRSS
         rssPoller
         rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller
