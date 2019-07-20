@@ -34,6 +34,8 @@ data SqlEnv = SqlEnv
 class Has part r where
   getPart :: r -> part
 
+instance Has r r where
+  getPart = id
 
 type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
 
