@@ -100,8 +100,7 @@ refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://hab
 pollRSS :: MetricableSqlMonad m => m ()
 pollRSS = do
   rss <- simpleHttp "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
-  let maybeIds = recentArticles rss
-  case maybeIds of
+  case recentArticles rss of
     Nothing -> undefined
     Just ids -> do
       writeLog LogDebug $ "Got new posts: " <> show ids
