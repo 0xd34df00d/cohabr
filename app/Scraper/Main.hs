@@ -17,6 +17,7 @@ import System.Log.FastLogger
 import System.Posix.Signals
 import System.Remote.Monitoring
 
+import Cohabr.AppEnv
 import Cohabr.Db(PostHabrId)
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.SqlMonad
@@ -108,8 +109,9 @@ main = do
 
   ekgServer <- forkServer monitoringHost monitoringPort
   withMetricsStore ekgServer $ \metrics -> do
+    let appEnv conn = AppEnv { sqlEnvPart = SqlEnv { .. }, httpConfigPart = httpConfig }
 
-    let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) SqlEnv { .. }
+    let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) $ appEnv conn
 
     case executionMode of
       PollingMode { .. } -> withUpdatesThread updatesConfig runFullMonad $ \ut -> do
