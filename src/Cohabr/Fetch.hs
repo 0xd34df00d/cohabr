@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction, ConstraintKinds, RankNTypes #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveAnyClass #-}
 
 module Cohabr.Fetch
 ( refetchPost
@@ -15,11 +16,13 @@ module Cohabr.Fetch
 ) where
 
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.HashSet as HS
 import Control.Concurrent
+import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.DeepSeq
-import Control.Exception(evaluate)
+import Control.Exception(evaluate, throw)
 import Control.Monad.Extra
 import Control.Monad.Catch
 import Control.Monad.Except
@@ -31,6 +34,7 @@ import Data.Monoid
 import Data.Ord
 import Data.Time.Clock
 import Data.Time.LocalTime
+import Data.Typeable
 import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
 import Network.HTTP.Conduit hiding(Proxy)
 import Network.HTTP.Types.Status(statusCode)
@@ -62,6 +66,11 @@ httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException res
   , marker `BS.isInfixOf` respContents      = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
   | statusCode (responseStatus resp) == 404 = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
 httpExHandler _ _ ex = throwM ex
+
+data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
+
+httpTimed :: Int -> String -> IO LBS.ByteString
+httpTimed n url = either (const $ throw HttpTimeout) id <$> race (threadDelay n) (simpleHttp url)
 
 refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
 refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://habr.com/ru/users/") $ do
