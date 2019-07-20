@@ -25,6 +25,7 @@ dependencies:
 - beam-postgres
 - bytestring
 - containers
+- data-default
 - deepseq
 - dependent-map
 - dependent-sum
