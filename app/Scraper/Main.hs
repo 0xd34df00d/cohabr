@@ -10,6 +10,7 @@ import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.Default
 import Options.Applicative
 import Time.Repeatedly
 import System.Log.FastLogger
@@ -102,7 +103,7 @@ main = do
     let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) SqlEnv { .. }
 
     case executionMode of
-      PollingMode { .. } -> withUpdatesThread runFullMonad $ \ut -> do
+      PollingMode { .. } -> withUpdatesThread def runFullMonad $ \ut -> do
         let rssPoller = runFullMonad pollRSS
         rssPoller
         rssPollHandle <- asyncRepeatedly (1 / pollInterval) rssPoller

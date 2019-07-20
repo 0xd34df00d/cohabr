@@ -9,6 +9,8 @@ module Cohabr.Fetch
 , newUpdatesThread
 , withUpdatesThread
 
+, UpdatesConfig(..)
+
 , checkUpdates
 ) where
 
@@ -22,6 +24,7 @@ import Control.Monad.Extra
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.Default
 import Data.Functor
 import Data.List
 import Data.Monoid
@@ -126,17 +129,28 @@ schedulePostCheck UpdatesThread { .. } updateInfo = atomically $ do
     writeTBQueue reqQueue updateInfo
   where phId = postHabrId updateInfo
 
-newUpdatesThread :: MetricableSqlMonadRunner -> IO (UpdatesThread, IO ())
-newUpdatesThread monadRunner = do
+data UpdatesConfig = UpdatesConfig
+  { updateThreads :: Int
+  , pendingUpdatesQueueSize :: Int
+  } deriving (Eq, Ord, Show)
+
+instance Default UpdatesConfig where
+  def = UpdatesConfig { .. }
+    where
+      updateThreads = 1
+      pendingUpdatesQueueSize = 1000
+
+newUpdatesThread :: UpdatesConfig -> MetricableSqlMonadRunner -> IO (UpdatesThread, IO ())
+newUpdatesThread UpdatesConfig { .. } monadRunner = do
   reqQueue <- newTBQueueIO 1000
   pendingRequests <- newTVarIO mempty
   let ut = UpdatesThread { .. }
-  threadId <- forkIO $ updatesThreadServer ut
-  pure (ut, killThread threadId)
+  tids <- replicateM updateThreads $ forkIO $ updatesThreadServer ut
+  pure (ut, mapM_ killThread tids)
 
-withUpdatesThread :: MetricableSqlMonadRunner -> (UpdatesThread -> IO a) -> IO a
-withUpdatesThread monadRunner f = bracket
-  (newUpdatesThread monadRunner)
+withUpdatesThread :: UpdatesConfig -> MetricableSqlMonadRunner -> (UpdatesThread -> IO a) -> IO a
+withUpdatesThread cfg monadRunner f = bracket
+  (newUpdatesThread cfg monadRunner)
   snd
   (f . fst)
 
