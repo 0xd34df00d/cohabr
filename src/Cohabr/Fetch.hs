@@ -69,8 +69,8 @@ httpExHandler _ _ ex = throwM ex
 
 data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
 
-httpTimed :: Int -> String -> IO LBS.ByteString
-httpTimed n url = either (const $ throw HttpTimeout) id <$> race (threadDelay n) (simpleHttp url)
+httpWithTimeout :: MonadIO m => Int -> String -> m LBS.ByteString
+httpWithTimeout timeout url = either (const $ throw HttpTimeout) id <$> liftIO (threadDelay timeout `race` simpleHttp url)
 
 refetchPost :: MetricableSqlMonad m => PostHabrId -> m ()
 refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://habr.com/ru/users/") $ do
