@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, TypeFamilies #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -O0 #-}
 
 module Cohabr.Db where
 
