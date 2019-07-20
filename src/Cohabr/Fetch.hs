@@ -178,7 +178,7 @@ checkUpdates blacklist ut = do
   moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
   let fullQueue = filter ((`notElem` blacklist) . postHabrId) $ sortOn (Down . published) $ filter (shallUpdate moscowNow) dates
   track OutdatedItemsCount $ genericLength fullQueue
-  let toRequest = take 100 fullQueue
+  let toRequest = take 200 fullQueue
   writeLog LogDebug $ "Scheduling updating " <> show toRequest
   liftIO $ mapM_ (schedulePostCheck ut) toRequest
 
