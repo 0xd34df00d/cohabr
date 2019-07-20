@@ -39,7 +39,6 @@ data ExecutionMode
     { pollInterval :: Rational
     , blacklistPath :: Maybe String
     , updatesConfig :: UpdatesConfig
-    , httpConfig :: HttpConfig
     }
   deriving (Eq, Show)
 
@@ -49,6 +48,7 @@ data Options = Options
   , monitoringHost :: BS.ByteString
   , monitoringPort :: Int
   , dbName :: String
+  , httpConfig :: HttpConfig
   , executionMode :: ExecutionMode
   } deriving (Eq, Show)
 
@@ -59,6 +59,7 @@ options = Options
   <*> strOption (long "monitoring-host" <> help "Monitoring server bind host name" <> value "localhost" <> showDefault)
   <*> option auto (long "monitoring-port" <> help "Monitoring server bind port" <> value 8000 <> showDefault)
   <*> strOption (long "dbname" <> short 'd' <> help "Database name" <> value "habr" <> showDefault)
+  <*> httpConfigParser
   <*> executionMode
   where
     executionMode = subparser $ mconcat
@@ -70,7 +71,6 @@ options = Options
             <$> option auto (long "poll-interval" <> help "Polling interval (in seconds)" <> value 60 <> showDefault)
             <*> optional (strOption $ long "blacklist" <> help "Blacklist file with \\n-separated post IDs")
             <*> updatesConfigParser
-            <*> httpConfigParser
     updatesConfigParser = UpdatesConfig
                         <$> option auto (long "update-fetch-jobs" <> help "Max parallel fetch jobs for the existing posts updates" <> value 4 <> showDefault)
                         <*> option auto (long "max-updates-queue-size" <> help "Max queue size for the update jobs" <> value (pendingUpdatesQueueSize def) <> showDefault)
