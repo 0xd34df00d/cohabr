@@ -1,23 +1,26 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RankNTypes, ConstraintKinds, FlexibleContexts, MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE RankNTypes, ConstraintKinds, FlexibleContexts #-}
 
 module Cohabr.Db.SqlMonad
 ( SqlEnv(..)
 , LogMessageContext(..)
 , Logger
 , LoggerHolder(..)
-, Has(..)
 , SqlMonad
 , withTransactionPg
 , runPg
 , inReader
 , writeLog
+
+, module X
 ) where
 
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Monad.Reader
 import Database.Beam.Postgres
 import GHC.Stack
+
+import Control.Monad.Reader.Has as X
 
 data LogMessageContext = LogSqlStmt | LogDebug | LogWarn | LogError
   deriving (Eq, Ord, Show)
@@ -30,12 +33,6 @@ data SqlEnv = SqlEnv
   { conn :: Connection
   , stmtLogger :: Logger
   }
-
-class Has part r where
-  extract :: r -> part
-
-instance Has r r where
-  extract = id
 
 type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
 
