@@ -32,25 +32,25 @@ data SqlEnv = SqlEnv
   }
 
 class Has part r where
-  getPart :: r -> part
+  extract :: r -> part
 
 instance Has r r where
-  getPart = id
+  extract = id
 
 type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
 
 withTransactionPg :: SqlMonad r m => Pg a -> m a
 withTransactionPg pg = do
-  SqlEnv { .. } <- asks getPart
+  SqlEnv { .. } <- asks extract
   liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
 
 runPg :: SqlMonad r m => Pg a -> m a
 runPg pg = do
-  SqlEnv { .. } <- asks getPart
+  SqlEnv { .. } <- asks extract
   liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
 
 inReader :: MonadReader r mr => (m a -> mr b) -> ReaderT r m a -> mr b
 inReader runner act = ask >>= \env -> runner $ runReaderT act env
 
 writeLog :: (HasCallStack, SqlMonad r m) => LogMessageContext -> String -> m ()
-writeLog ctx str = reader (stmtLogger . getPart) >>= \logger -> logger ctx str
+writeLog ctx str = reader (stmtLogger . extract) >>= \logger -> logger ctx str

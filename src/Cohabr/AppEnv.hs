@@ -11,7 +11,7 @@ data AppEnv = AppEnv
   }
 
 instance Has HttpConfig AppEnv where
-  getPart = httpConfigPart
+  extract = httpConfigPart
 
 instance Has SqlEnv AppEnv where
-  getPart = sqlEnvPart
+  extract = sqlEnvPart

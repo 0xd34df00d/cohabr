@@ -104,7 +104,7 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                                                              | otherwise = do
   insertVersionHubs postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ reader (stmtLogger . getPart) >>=
+  unless (remCnt == length removed) $ reader (stmtLogger . extract) >>=
       \logger -> logger LogWarn [i|Unexpected removed hubs count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
@@ -119,7 +119,7 @@ updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                                                              | otherwise = do
   insertVersionTags postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ reader (stmtLogger . getPart) >>=
+  unless (remCnt == length removed) $ reader (stmtLogger . extract) >>=
       \logger -> logger LogWarn [i|Unexpected removed tags count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
