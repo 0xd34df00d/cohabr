@@ -39,8 +39,6 @@ dependencies:
 - http-conduit
 - http-types
 - interpolate
-- microlens
-- microlens-th
 - mtl
 - monad-metrics-extensible
 - postgresql-simple
