@@ -94,3 +94,5 @@ data Post = Post
   , timestamp :: LocalTime
   , postStats :: PostStats
   } deriving (Eq, Ord, Show, Data, Generic, NFData)
+
+data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum, Bounded)
