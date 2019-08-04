@@ -1,10 +1,11 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
-{-# LANGUAGE RecordWildCards, LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -O0 #-}
 
 module Cohabr.Db where
 
+import Data.Char
 import Data.Text(Text)
 import Data.Time.LocalTime
 import Database.Beam
@@ -12,14 +13,15 @@ import Database.Beam.Backend.Types
 
 import Cohabr.Db.HelperTypes
 
-data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum)
+data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance (BeamBackend be, FromBackendRow be String) => FromBackendRow be PostType where
-  fromBackendRow =
-    fromBackendRow >>= \case "post" -> pure TyPost
-                             "article" -> pure TyArticle
-                             "news" -> pure TyNews
-                             val -> fail $ "invalid value for PostType: " <> val
+  fromBackendRow = do
+    val <- fromBackendRow
+    case lookup val tys of
+      Just ty -> pure ty
+      _ -> fail $ "invalid value for PostType: " <> val
+    where tys = [ (drop 2 $ toLower <$> show ty, ty) | ty <- [minBound .. maxBound] ]
 
 data PostT f = Post
   { pId              :: Columnar f PostPKey
