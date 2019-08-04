@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction, ConstraintKinds, RankNTypes #-}
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, LambdaCase #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveAnyClass #-}
 
 module Cohabr.Fetch
@@ -83,17 +83,7 @@ refetchPost :: MetricableSqlMonad r m => PostHabrId -> m ()
 refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://habr.com/ru/users/") $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
 
-  now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
-
-  let url = urlForPostId $ getHabrId habrPostId
-  postPage <- timed PageFetchTime $ simpleHttp url
-
-  let root = fromDocument $ parseLBS postPage
-  void $ timed PageXMLParseTime $ force' $ node root
-  let normalize = normalizeUrls $ URL url
-  parseResult <- timed PageContentsParseTime $ force' $ normalize $ runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
-
-  case parseResult of
+  fetchAndParse habrPostId >>= \case
     Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
       let commentsLength = getSum $ mconcat $ Sum . length <$> comments
@@ -111,8 +101,20 @@ refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://hab
           let commentsUpdates = commentsUpdatesActions storedInfo comments
           trackLogging UpdatedCommentsCount $ fromIntegral $ newCommentsCount commentsUpdates
           timedAvg PerCommentUpdateTime commentsLength $ updateComments commentsUpdates
+
   writeLog LogDebug $ "done processing " <> show habrPostId
 
+fetchAndParse :: MetricableSqlMonad r m => PostHabrId -> m (Either [String] (Habr.Types.Post, Comments))
+fetchAndParse habrPostId = do
+  now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
+
+  let url = urlForPostId $ getHabrId habrPostId
+  postPage <- timed PageFetchTime $ simpleHttp url
+
+  let root = fromDocument $ parseLBS postPage
+  void $ timed PageXMLParseTime $ force' $ node root
+  let normalize = normalizeUrls $ URL url
+  timed PageContentsParseTime $ force' $ normalize $ runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
   where
     force' = liftIO . evaluate . force
 
