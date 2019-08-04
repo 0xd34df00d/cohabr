@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, TypeFamilies #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE RecordWildCards, LambdaCase #-}
 {-# OPTIONS_GHC -O0 #-}
 
 module Cohabr.Db where
@@ -7,10 +8,18 @@ module Cohabr.Db where
 import Data.Text(Text)
 import Data.Time.LocalTime
 import Database.Beam
+import Database.Beam.Backend.Types
 
 import Cohabr.Db.HelperTypes
 
 data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum)
+
+instance (BeamBackend be, FromBackendRow be String) => FromBackendRow be PostType where
+  fromBackendRow =
+    fromBackendRow >>= \case "post" -> pure TyPost
+                             "article" -> pure TyArticle
+                             "news" -> pure TyNews
+                             val -> fail $ "invalid value for PostType: " <> val
 
 data PostT f = Post
   { pId              :: Columnar f PostPKey
