@@ -28,8 +28,6 @@ dependencies:
 - containers
 - data-default
 - deepseq
-- dependent-map
-- dependent-sum
 - dom-selector
 - either
 - ekg
