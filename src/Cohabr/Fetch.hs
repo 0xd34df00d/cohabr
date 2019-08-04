@@ -43,7 +43,7 @@ import Numeric.Natural
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument, node)
 
-import Cohabr.Db
+import Cohabr.Db(PostHabrId, PostPKey)
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.Inserts
 import Cohabr.Db.Queries
@@ -104,7 +104,7 @@ refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://hab
 
   writeLog LogDebug $ "done processing " <> show habrPostId
 
-fetchAndParse :: MetricableSqlMonad r m => PostHabrId -> m (Either [String] (Habr.Types.Post, Comments))
+fetchAndParse :: MetricableSqlMonad r m => PostHabrId -> m (Either [String] (Post, Comments))
 fetchAndParse habrPostId = do
   now <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
 
