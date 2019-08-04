@@ -10,6 +10,8 @@ import Database.Beam
 
 import Cohabr.Db.HelperTypes
 
+data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum)
+
 data PostT f = Post
   { pId              :: Columnar f PostPKey
   , pSourceId        :: Columnar f PostHabrId
