@@ -95,4 +95,5 @@ data Post = Post
   , user :: UserInfo
   , timestamp :: LocalTime
   , postStats :: PostStats
+  , postType :: PostType
   } deriving (Eq, Ord, Show, Data, Generic, NFData)

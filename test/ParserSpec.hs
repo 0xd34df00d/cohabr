@@ -175,6 +175,7 @@ mkNowContext :: IO ParseContext
 mkNowContext = do
   currentTime <- zonedTimeToLocalTime <$> getZonedTime
   pure ParseContext { .. }
+  where assumedPostType = TyPost
 
 getParsedPost :: Int -> IO Post
 getParsedPost pgId = do

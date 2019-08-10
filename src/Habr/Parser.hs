@@ -32,8 +32,9 @@ import Habr.Types
 import Habr.Util
 import Habr.Internal.Util
 
-newtype ParseContext = ParseContext
+data ParseContext = ParseContext
   { currentTime :: LocalTime
+  , assumedPostType :: PostType
   } deriving (Eq, Ord, Show)
 
 type ParseError = [String]
@@ -43,6 +44,7 @@ throwParseError = throwError . pure
 
 parsePost :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Post
 parsePost root = do
+  postType <- asks assumedPostType
   title <- T.strip <$> root @>. [jq|span.post__title-text|]
   body <- T.strip <$> root @>. [jq|div.post__text|]
   hubs <- parseHubs root

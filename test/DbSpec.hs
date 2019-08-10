@@ -49,6 +49,7 @@ testPost = HT.Post
     , HT.bookmarks = 5
     , HT.views = HT.PostViews True 123
     }
+  , HT.postType = HT.TyPost
   }
 
 testPostId, testPostIdUpdateContents, testPostIdUpdateBoth :: PostHabrId
