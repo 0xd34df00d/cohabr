@@ -123,7 +123,7 @@ pollRSS :: MetricableSqlMonad r m => m ()
 pollRSS = do
   rss <- httpWithTimeout "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
   case recentArticles rss of
-    Nothing -> undefined
+    Nothing -> writeLog LogError "No posts at all detected in the RSS feed"
     Just ids -> do
       writeLog LogDebug $ "Got new posts: " <> show ids
       recs <- selectMissingPosts $ HabrId <$> ids
