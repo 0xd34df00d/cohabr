@@ -29,9 +29,9 @@ spec :: Spec
 spec = beforeAll_ fetchPages $
   describe "Basic page parsing" $ do
     it "parses a page successfully" $ do
-      now <- zonedTimeToLocalTime <$> getZonedTime
+      parseCtx <- mkNowContext
       root <- rootElem 203820
-      let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) ParseContext { currentTime = now }
+      let parseResult = runExcept $ runReaderT ((,) <$> parsePost root <*> parseComments root) parseCtx
       parseResult `shouldSatisfy` isRight
     it "parses the post metainformation correctly" $ do
       Post { .. } <- getParsedPost 203820
@@ -171,19 +171,24 @@ pathForId pgId = [i|test/testpages/#{pgId}|]
 rootElem :: Int -> IO Cursor
 rootElem pgId = fromDocument . parseLBS <$> LBS.readFile (pathForId pgId)
 
+mkNowContext :: IO ParseContext
+mkNowContext = do
+  currentTime <- zonedTimeToLocalTime <$> getZonedTime
+  pure ParseContext { .. }
+
 getParsedPost :: Int -> IO Post
 getParsedPost pgId = do
-  now <- zonedTimeToLocalTime <$> getZonedTime
+  parseCtx <- mkNowContext
   root <- rootElem pgId
-  case runExcept $ runReaderT (parsePost root) ParseContext { currentTime = now } of
+  case runExcept $ runReaderT (parsePost root) parseCtx of
     Left err -> error [i|Unable to parse post: #{err}|]
     Right post -> pure $ normalizeUrls (urlForPostId pgId) post
 
 getParsedComments :: Int -> IO Comments
 getParsedComments pgId = do
-  now <- zonedTimeToLocalTime <$> getZonedTime
+  parseCtx <- mkNowContext
   root <- rootElem pgId
-  case runExcept $ runReaderT (parseComments root) ParseContext { currentTime = now } of
+  case runExcept $ runReaderT (parseComments root) parseCtx of
     Left err -> error [i|Unable to parse post: #{err}|]
     Right post -> pure $ normalizeUrls (urlForPostId pgId) post
 
