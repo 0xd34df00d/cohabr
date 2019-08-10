@@ -21,6 +21,7 @@ dependencies:
 - beam-core
 - beam-postgres
 - bytestring
+- can-i-haz
 - containers
 - data-default
 - deepseq
