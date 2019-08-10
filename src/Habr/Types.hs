@@ -83,6 +83,8 @@ data Link = Link
   , linkName :: T.Text
   } deriving (Eq, Ord, Show, Data, Generic, NFData)
 
+data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum, Bounded, Data, Generic, NFData)
+
 data Post = Post
   { title :: T.Text
   , body :: T.Text
@@ -94,5 +96,3 @@ data Post = Post
   , timestamp :: LocalTime
   , postStats :: PostStats
   } deriving (Eq, Ord, Show, Data, Generic, NFData)
-
-data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum, Bounded)
