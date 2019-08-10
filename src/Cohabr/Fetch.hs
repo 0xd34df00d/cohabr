@@ -24,9 +24,9 @@ import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.DeepSeq
 import Control.Exception(evaluate, throw)
-import Control.Monad.Extra
 import Control.Monad.Catch
 import Control.Monad.Except
+import Control.Monad.Extra
 import Control.Monad.Reader
 import Data.Default
 import Data.Functor
