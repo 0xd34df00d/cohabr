@@ -56,7 +56,7 @@ spec = beforeAll_ fetchPages $
       postStats `shouldBe` PostStats
                            { votes = Votes 5 3
                            , bookmarks = 58
-                           , views = PostViews False 37200
+                           , views = PostViews False 37300
                            }
     it "parses the post title and body correctly" $ do
       post <- getParsedPost 203820
