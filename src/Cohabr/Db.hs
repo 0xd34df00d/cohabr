@@ -26,6 +26,7 @@ data PostT f = Post
   , pCurrentVersion  :: Columnar f PostVersionPKey
   , pAuthor          :: Columnar f (Maybe UserPKey)
   , pLastQueried     :: Columnar f LocalTime
+  , pType            :: Columnar f PostType
   } deriving (Generic, Beamable)
 
 type Post = PostT Identity

@@ -76,6 +76,7 @@ makePostRecord habrId versionId userId HT.Post { .. } = Post
   , pCurrentVersion = val_ versionId
   , pAuthor = val_ $ Just userId
   , pLastQueried = default_
+  , pType = val_ $ postType
   }
   where
     HT.PostStats { votes = HT.Votes { .. }, .. } = postStats
