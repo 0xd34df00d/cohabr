@@ -1,27 +1,16 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -O0 #-}
 
 module Cohabr.Db where
 
-import Data.Char
 import Data.Text(Text)
 import Data.Time.LocalTime
 import Database.Beam
-import Database.Beam.Backend.Types
 
 import Cohabr.Db.HelperTypes
-
-import Habr.Types(PostType(..))
-
-instance (BeamBackend be, FromBackendRow be String) => FromBackendRow be PostType where
-  fromBackendRow = do
-    val <- fromBackendRow
-    case lookup val tys of
-      Just ty -> pure ty
-      _ -> fail $ "invalid value for PostType: " <> val
-    where tys = [ (drop 2 $ toLower <$> show ty, ty) | ty <- [minBound .. maxBound] ]
+import Cohabr.Db.Orphans
 
 data PostT f = Post
   { pId              :: Columnar f PostPKey
