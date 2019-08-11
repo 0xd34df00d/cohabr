@@ -90,7 +90,7 @@ time act = do
   result <- act
   endCpu <- liftIO getCPUTime
   endWall <- liftIO $ realToFrac <$> getPOSIXTime
-  let wallTime = endWall - startWall
+  let wallTime = (endWall - startWall) * 1e3
   let cpuTime = fromIntegral (endCpu - startCpu) / 1e9
   pure (Timing { .. }, result)
 
