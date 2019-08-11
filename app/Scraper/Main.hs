@@ -137,8 +137,10 @@ main = do
       BackfillMode { .. } -> do
         idsStrs <- lines <$> readFile inputFilePath
         let ids = read <$> idsStrs
-        runFullMonad $
+        runFullMonad $ do
+          track BackfillQueueSize $ SetCountdown $ length ids
           forM_ ids $ \habrId -> do
+            track BackfillQueueSize DecCountdown
             refetchPost $ HabrId habrId
             liftIO $ threadDelay 100000
   stmtLogger LogDebug "bye-bye!"
