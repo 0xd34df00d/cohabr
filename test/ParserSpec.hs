@@ -56,7 +56,7 @@ spec = beforeAll_ fetchPages $
       postStats `shouldBe` PostStats
                            { votes = Votes 5 3
                            , bookmarks = 58
-                           , views = PostViews False 37300
+                           , views = PostViews False 37400
                            }
       postType `shouldBe` TyPost
     it "parses the post title and body correctly" $ do
