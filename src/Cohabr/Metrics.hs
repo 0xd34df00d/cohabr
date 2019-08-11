@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, RankNTypes, DataKinds, FlexibleContexts, ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving, BangPatterns #-}
+{-# LANGUAGE StandaloneDeriving, RecordWildCards #-}
 
 module Cohabr.Metrics
 ( Metric(..)
@@ -16,6 +16,7 @@ import GHC.TypeLits
 import System.Metrics.Counter as TC
 import System.Metrics.Distribution as TD
 import System.Metrics.Gauge as TG
+import System.CPUTime
 import Type.Reflection
 
 import Cohabr.Db.SqlMonad
@@ -52,13 +53,21 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
-time :: MonadIO m => m a -> m (Double, a)
+data Timing = Timing
+  { wallTime :: !Double
+  , cpuTime :: !Double
+  } deriving (Eq, Ord, Show)
+
+time :: MonadIO m => m a -> m (Timing, a)
 time act = do
-  start <- liftIO $ realToFrac <$> getPOSIXTime
+  startWall <- liftIO $ realToFrac <$> getPOSIXTime
+  startCpu <- liftIO getCPUTime
   result <- act
-  end <- liftIO $ realToFrac <$> getPOSIXTime
-  let !delta = end - start
-  pure (delta, result)
+  endCpu <- liftIO getCPUTime
+  endWall <- liftIO $ realToFrac <$> getPOSIXTime
+  let wallTime = endWall - startWall
+  let cpuTime = fromIntegral (endCpu - startCpu) / 1e9
+  pure (Timing { .. }, result)
 
 trackLogging :: forall r m name. (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Double -> m ()
 trackLogging metric t = do
@@ -68,11 +77,11 @@ trackLogging metric t = do
 timed :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
 timed metric act = do
   (t, res) <- time act
-  trackLogging metric $ t * 1000
+  trackLogging metric $ wallTime t * 1000
   pure res
 
 timedAvg :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
 timedAvg metric len act = do
   (t, res) <- time act
-  trackLogging metric $ t * 1000 / if len == 0 then 1 else fromIntegral len
+  trackLogging metric $ wallTime t * 1000 / if len == 0 then 1 else fromIntegral len
   pure res
