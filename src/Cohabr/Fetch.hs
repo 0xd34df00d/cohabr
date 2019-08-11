@@ -110,7 +110,7 @@ fetchAndParse habrPostId = do
   let assumedPostType = TyPost
 
   let url = urlForPostId $ getHabrId habrPostId
-  postPage <- timed PageFetchTime $ simpleHttp url
+  postPage <- timed PageFetchTime $ httpWithTimeout url
 
   let root = fromDocument $ parseLBS postPage
   void $ timed PageXMLParseTime $ force' $ node root
@@ -195,7 +195,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
 
 isRssNewer :: MetricableSqlMonad r m => PostPKey -> PostHabrId -> m Bool
 isRssNewer postPKey habrPostId = handle (\ex -> httpExHandler habrPostId "<!DOCTYPE" ex $> False) $ do
-  rss <- simpleHttp $ rssUrlForPostId $ getHabrId habrPostId
+  rss <- httpWithTimeout $ rssUrlForPostId $ getHabrId habrPostId
   case lastCommentDate rss of
     Nothing -> pure False
     Just lastRss -> do
