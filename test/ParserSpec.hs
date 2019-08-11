@@ -12,6 +12,7 @@ import Data.Generics.Uniplate.Data
 import Data.List
 import Data.String.Interpolate.IsString
 import Data.Time.Calendar
+import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Tree
 import Network.HTTP.Conduit
@@ -160,11 +161,19 @@ fetchPages = do
   createDirectoryIfMissing True "test/testpages"
   forM_ ids $ \pgId -> do
     let pgPath = pathForId pgId
-    unlessM (doesPathExist pgPath) $ do
+    whenM (shouldFetch pgPath) $ do
       putStrLn [i|Fetching #{pgId}...|]
       pgContents <- simpleHttp $ urlForPostId pgId
       LBS.writeFile pgPath pgContents
   where ids = [203820]
+
+shouldFetch :: FilePath -> IO Bool
+shouldFetch pgPath = ifM (notM $ doesPathExist pgPath)
+  (pure True)
+  $ do
+    modTime <- getModificationTime pgPath
+    now <- getCurrentTime
+    pure $ now `diffUTCTime` modTime > 86400
 
 pathForId :: Int -> FilePath
 pathForId pgId = [i|test/testpages/#{pgId}|]
