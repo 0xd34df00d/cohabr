@@ -27,7 +27,7 @@ import Habr.Types
 import Habr.Util
 
 spec :: Spec
-spec = beforeAll_ fetchPages $
+spec = beforeAll_ fetchPages $ do
   describe "Basic page parsing" $ do
     it "parses a page successfully" $ do
       parseCtx <- mkNowContext
@@ -68,6 +68,19 @@ spec = beforeAll_ fetchPages $
     it "parses the comments to the expected structure" $ do
       comments <- getParsedComments 203820
       fmap (fmap trimText) comments `shouldBe` expectedComments203820
+  describe "News parsing" $
+    it "parses a news item correctly" $ do
+      Post { .. } <- getParsedPost 441828
+      postType `shouldBe` TyNews
+      title `shouldBe` "Обналичивание криптовалют в РФ попало под действие УК"
+      hubs `shouldBeSet` [ Hub "business-laws" "Законодательство в IT" NormalHub
+                         , Hub "cryptocurrency" "Криптовалюты" NormalHub
+                         ]
+      postStats `shouldBe` PostStats
+                           { votes = Votes 27 21
+                           , bookmarks = 21
+                           , views = PostViews False 12700
+                           }
   where
     trimText = transformBi $ \case
                 c@CommentExisting {} -> c { commentText = T.strip $ fst $ T.breakOn "<br" $ commentText c }
@@ -165,7 +178,7 @@ fetchPages = do
       putStrLn [i|Fetching #{pgId}...|]
       pgContents <- simpleHttp $ urlForPostId pgId
       LBS.writeFile pgPath pgContents
-  where ids = [203820]
+  where ids = [203820, 441828]
 
 shouldFetch :: FilePath -> IO Bool
 shouldFetch pgPath = ifM (notM $ doesPathExist pgPath)
