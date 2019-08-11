@@ -1,5 +1,5 @@
-{-# LANGUAGE GADTs, RankNTypes, DataKinds, FlexibleContexts, ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving, RecordWildCards #-}
+{-# LANGUAGE GADTs, RankNTypes, DataKinds, FlexibleContexts, ScopedTypeVariables, TypeFamilies #-}
+{-# LANGUAGE StandaloneDeriving, RecordWildCards, OverloadedStrings #-}
 
 module Cohabr.Metrics
 ( Metric(..)
@@ -13,6 +13,7 @@ import Control.Monad.IO.Class
 import Data.Time.Clock.POSIX
 import Data.Proxy
 import GHC.TypeLits
+import System.Metrics
 import System.Metrics.Counter as TC
 import System.Metrics.Distribution as TD
 import System.Metrics.Gauge as TG
@@ -57,6 +58,23 @@ data Timing = Timing
   { wallTime :: !Double
   , cpuTime :: !Double
   } deriving (Eq, Ord, Show)
+
+data Timer = Timer
+  { wallTimer :: Distribution
+  , cpuTimer :: Distribution
+  }
+
+instance TrackerLike Timer where
+  type TrackAction Timer m = Timing -> m ()
+  track metric Timing { .. } = do
+    Timer { .. } <- getTracker metric
+    liftIO $ do
+      TD.add wallTimer wallTime
+      TD.add cpuTimer cpuTime
+  createTracker name store = do
+    wallTimer <- createDistribution (name <> ".wall_ms") store
+    cpuTimer <- createDistribution (name <> ".cpu_ms") store
+    pure $ Timer { .. }
 
 time :: MonadIO m => m a -> m (Timing, a)
 time act = do
