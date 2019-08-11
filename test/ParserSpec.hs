@@ -58,6 +58,7 @@ spec = beforeAll_ fetchPages $
                            , bookmarks = 58
                            , views = PostViews False 37300
                            }
+      postType `shouldBe` TyPost
     it "parses the post title and body correctly" $ do
       post <- getParsedPost 203820
       title post `shouldBe` "WCF RIA Services. Начало. Часть 1"
