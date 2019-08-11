@@ -44,7 +44,7 @@ throwParseError = throwError . pure
 
 parsePost :: (MonadReader ParseContext m, MonadError ParseError m) => Cursor -> m Post
 parsePost root = do
-  postType <- asks assumedPostType
+  postType <- derivePostType root
   title <- T.strip <$> root @>. [jq|span.post__title-text|]
   body <- T.strip <$> root @>. [jq|div.post__text|]
   hubs <- parseHubs root
@@ -55,6 +55,14 @@ parsePost root = do
   flags <- parseFlags root
   link <- parseLink root
   pure Post { .. }
+
+derivePostType :: MonadError ParseError m => Cursor -> m PostType
+derivePostType root | [canonical] <- canonicals = fromLink <$> canonical @@ "href"
+                    | otherwise = throwParseError [i|Unable to find canonical rel link|]
+  where
+    canonicals = filter ((== ["canonical"]) . attribute "rel") $ queryT [jq|link|] root
+    fromLink href | "news" `T.isInfixOf` href = TyNews
+                  | otherwise = TyPost
 
 parseHubs :: MonadError ParseError m => Cursor -> m [Hub]
 parseHubs root = forM (queryT [jq|.hub-link|] root) $ \cur -> do
