@@ -24,9 +24,9 @@ import Cohabr.Db.SqlMonad
 import System.Metrics.Extensible as SME
 
 data Metric tracker name where
-  PageContentsParseTime       :: Metric Distribution "page.parse.contents_ms"
-  PageXMLParseTime            :: Metric Distribution "page.parse.xml_ms"
-  PageFetchTime               :: Metric Distribution "page.fetch_ms"
+  PageContentsParseTime       :: Metric Timer        "page.parse.contents"
+  PageXMLParseTime            :: Metric Timer        "page.parse.xml"
+  PageFetchTime               :: Metric Timer        "page.fetch"
   NumPagesFetched             :: Metric Counter      "page.fetches_count"
   DeniedPagesCount            :: Metric Counter      "page.denied_count"
   FetchedCommentsCount        :: Metric Distribution "page.fetched_comments_count"
@@ -34,18 +34,18 @@ data Metric tracker name where
 
   NewPostsCount               :: Metric Distribution "rss.newposts_count"
 
-  StoredPostInfoRetrievalTime :: Metric Distribution "db.fetch.stored_post_ms"
+  StoredPostInfoRetrievalTime :: Metric Timer        "db.fetch.stored_post"
 
-  PostInsertTime              :: Metric Distribution "db.insert.post_ms"
-  PerCommentInsertTime        :: Metric Distribution "db.insert.percomment_ms"
-  TotalInsertTime             :: Metric Distribution "db.insert.total_ms"
+  PostInsertTime              :: Metric Timer        "db.insert.post"
+  PerCommentInsertTime        :: Metric Timer        "db.insert.percomment"
+  TotalInsertTime             :: Metric Timer        "db.insert.total"
 
-  PostUpdateTime              :: Metric Distribution "db.update.post_ms"
-  PerCommentUpdateTime        :: Metric Distribution "db.update.percomment_ms"
-  TotalUpdateTime             :: Metric Distribution "db.update.total_ms"
+  PostUpdateTime              :: Metric Timer        "db.update.post"
+  PerCommentUpdateTime        :: Metric Timer        "db.update.percomment"
+  TotalUpdateTime             :: Metric Timer        "db.update.total"
 
-  UpdatesCandidatesQueryTime  :: Metric Distribution "db.fetch.updates_candidates_ms"
-  LastCommentDateQueryTime    :: Metric Distribution "db.fetch.last_comment_date_ms"
+  UpdatesCandidatesQueryTime  :: Metric Timer        "db.fetch.updates_candidates"
+  LastCommentDateQueryTime    :: Metric Timer        "db.fetch.last_comment_date"
 
   UpdateCheckQueueSize        :: Metric Gauge        "cohabr.updater.queue_size"
   OutdatedItemsCount          :: Metric Gauge        "cohabr.updater.outdated_count"
@@ -58,6 +58,11 @@ data Timing = Timing
   { wallTime :: !Double
   , cpuTime :: !Double
   } deriving (Eq, Ord, Show)
+
+adjustAvg :: Timing -> Int -> Timing
+adjustAvg t 0 = t
+adjustAvg Timing { .. } count = Timing { wallTime = wallTime / count', cpuTime = cpuTime / count' }
+  where count' = fromIntegral count
 
 data Timer = Timer
   { wallTimer :: Distribution
@@ -94,14 +99,14 @@ trackLogging metric t = do
   writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> ": " <> show t
   track metric t
 
-timed :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
+timed :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Timer name -> m a -> m a
 timed metric act = do
   (t, res) <- time act
-  trackLogging metric $ wallTime t * 1000
+  trackLogging metric t
   pure res
 
-timedAvg :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Int -> m a -> m a
+timedAvg :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Timer name -> Int -> m a -> m a
 timedAvg metric len act = do
   (t, res) <- time act
-  trackLogging metric $ wallTime t * 1000 / if len == 0 then 1 else fromIntegral len
+  trackLogging metric $ t `adjustAvg` len
   pure res
