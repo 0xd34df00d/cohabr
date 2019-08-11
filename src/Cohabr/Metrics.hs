@@ -3,9 +3,13 @@
 
 module Cohabr.Metrics
 ( Metric(..)
+
+, CountdownAction(..)
+
 , trackLogging
 , timed
 , timedAvg
+
 , module SME
 ) where
 
@@ -55,6 +59,19 @@ data Metric tracker name where
 
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
+
+newtype Countdown = Countdown Gauge
+
+data CountdownAction = SetCountdown Int | DecCountdown
+
+instance TrackerLike Countdown where
+  type TrackAction Countdown m = CountdownAction -> m ()
+  track metric act = do
+    Countdown g <- getTracker metric
+    liftIO $ case act of
+                  DecCountdown -> TG.dec g
+                  SetCountdown n -> TG.set g $ fromIntegral n
+  createTracker name store = Countdown <$> createGauge name store
 
 data Timing = Timing
   { wallTime :: !Double
