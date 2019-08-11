@@ -49,6 +49,8 @@ data Metric tracker name where
 
   UpdateCheckQueueSize        :: Metric Gauge        "cohabr.updater.queue_size"
   OutdatedItemsCount          :: Metric Gauge        "cohabr.updater.outdated_count"
+
+  BackfillQueueSize           :: Metric Gauge        "cohabr.backfill.queue_size"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
