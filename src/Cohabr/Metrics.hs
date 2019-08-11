@@ -87,9 +87,11 @@ time act = do
   let cpuTime = fromIntegral (endCpu - startCpu) / 1e9
   pure (Timing { .. }, result)
 
-trackLogging :: forall r m name. (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> Double -> m ()
+trackLogging :: forall r m name trackerTy valTy.
+                (SqlMonad r m, MonadMetrics m, KnownSymbol name, TrackerLike trackerTy, Show valTy, TrackAction trackerTy m ~ (valTy -> m ()))
+                => Metric trackerTy name -> valTy -> m ()
 trackLogging metric t = do
-  writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> " in " <> show t
+  writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> ": " <> show t
   track metric t
 
 timed :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Distribution name -> m a -> m a
