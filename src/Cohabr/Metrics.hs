@@ -35,6 +35,7 @@ data Metric tracker name where
 
   DeniedPagesCount            :: Metric Counter      "page.denied_count"
   TimeoutPagesCount           :: Metric Counter      "page.timeout_count"
+  HardTimeoutPagesCount       :: Metric Counter      "page.hard_timeout_count"
 
   FetchedCommentsCount        :: Metric Distribution "page.fetched_comments_count"
   UpdatedCommentsCount        :: Metric Distribution "page.updated_comments_count"
