@@ -70,7 +70,7 @@ httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException res
   | statusCode (responseStatus resp) == 403
   , marker `BS.isInfixOf` respContents      = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
   | statusCode (responseStatus resp) == 404 = track DeniedPagesCount >> writeLog LogWarn ("Post is unavailable: " <> show habrPostId)
-httpExHandler habrPostId _ (HttpExceptionRequest _ ResponseTimeout) = track TimeoutPagesCount >> writeLog LogError ("Request timeout: " <> show habrPostId)
+httpExHandler habrPostId _ (HttpExceptionRequest _ ResponseTimeout) = track TimeoutHttpCount >> writeLog LogError ("Request timeout: " <> show habrPostId)
 httpExHandler _ _ ex = throwM ex
 
 data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
