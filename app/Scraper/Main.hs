@@ -94,6 +94,7 @@ mkLoggers Options { .. } = do
                   | otherwise = LogNone
     levelStr LogSqlStmt = "sql"
     levelStr LogDebug = "debug"
+    levelStr LogInfo = "info"
     levelStr LogWarn = "warn"
     levelStr LogError = "error"
 

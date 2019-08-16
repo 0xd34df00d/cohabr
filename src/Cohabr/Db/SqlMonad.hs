@@ -22,7 +22,7 @@ import GHC.Stack
 
 import Control.Monad.Reader.Has as X
 
-data LogMessageContext = LogSqlStmt | LogDebug | LogWarn | LogError
+data LogMessageContext = LogSqlStmt | LogDebug | LogInfo | LogWarn | LogError
   deriving (Eq, Ord, Show)
 
 type Logger = forall m. (HasCallStack, MonadIO m) => LogMessageContext -> String -> m ()
