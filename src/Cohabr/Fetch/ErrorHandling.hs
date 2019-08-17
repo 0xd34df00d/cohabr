@@ -51,8 +51,8 @@ catchesMaybe handlers act = act `catch` tryHandlers
   where
     tryHandlers e | Just hAct <- msum $ tryHandler e <$> handlers = hAct
                   | otherwise = throwM e
-    tryHandler e (HandlerMaybe handler)
-      | Just e' <- fromException e = handler e'
+    tryHandler e (HandlerMaybe handlerFun)
+      | Just e' <- fromException e = handlerFun e'
       | otherwise = Nothing
 
 httpForbiddenHandler :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> HttpException -> Maybe (m ())
