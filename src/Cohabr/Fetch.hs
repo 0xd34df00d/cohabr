@@ -226,7 +226,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
   threadDelay 100000
 
 isRssNewer :: MetricableSqlMonad r m => PostPKey -> PostHabrId -> m Bool
-isRssNewer postPKey habrPostId = catchesMaybe (fmap ($> False) $ handleHttpExceptionPost habrPostId "<!DOCTYPE") $ do
+isRssNewer postPKey habrPostId = catchesMaybe (($> False) <$> handleHttpExceptionPost habrPostId "<!DOCTYPE") $ do
   rss <- httpWithTimeout $ rssUrlForPostId $ getHabrId habrPostId
   case lastCommentDate rss of
     Nothing -> pure False
