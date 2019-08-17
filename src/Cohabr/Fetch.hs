@@ -69,7 +69,7 @@ httpExHandler :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> HttpEx
 httpExHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException resp respContents))
   | (sc == 403 && marker `BS.isInfixOf` respContents) || sc == 404 = track DeniedPagesCount >> writeLog LogInfo ("Post is unavailable: " <> show habrPostId)
   where sc = statusCode $ responseStatus resp
-httpExHandler habrPostId _ (HttpExceptionRequest _ ResponseTimeout) = track TimeoutHttpCount >> writeLog LogError ("Request timeout: " <> show habrPostId)
+httpExHandler habrPostId _ (HttpExceptionRequest _ ResponseTimeout) = track TimeoutHttpCount >> writeLog LogWarn ("Request timeout: " <> show habrPostId)
 httpExHandler _ _ ex = throwM ex
 
 data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
