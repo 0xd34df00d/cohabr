@@ -32,9 +32,8 @@ import Habr.Types
 import Habr.Util
 import Habr.Internal.Util
 
-data ParseContext = ParseContext
+newtype ParseContext = ParseContext
   { currentTime :: LocalTime
-  , assumedPostType :: PostType
   } deriving (Eq, Ord, Show)
 
 type ParseError = [String]

@@ -107,7 +107,6 @@ refetchPost habrPostId = handle (httpExHandler habrPostId "<a href=\"https://hab
 fetchAndParse :: MetricableSqlMonad r m => PostHabrId -> m (Either [String] (Post, Comments))
 fetchAndParse habrPostId = do
   currentTime <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
-  let assumedPostType = TyPost
 
   let url = urlForPostId $ getHabrId habrPostId
   postPage <- timed PageFetchTime $ httpWithTimeout url
