@@ -84,7 +84,7 @@ httpForbiddenHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeExcept
   | sc == 404 = Just act
   where
     sc = statusCode $ responseStatus resp
-    act = track DeniedPagesCount >> writeLog LogInfo ("Post is unavailable: " <> show habrPostId)
+    act = track DeniedPagesCount >> writeLog LogInfo [i|Post is unavailable: #{habrPostId}|]
 httpForbiddenHandler _ _ _ = Nothing
 
 httpTimeoutHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpException -> Maybe (m ())
