@@ -37,6 +37,7 @@ data Metric tracker name where
 
   TimeoutHttpCount            :: Metric Counter      "http.timeout_count"
   HardTimeoutHttpCount        :: Metric Counter      "http.hard_timeout_count"
+  FailedHttpRequestsCount     :: Metric Counter      "http.errors_count"
 
   FetchedCommentsCount        :: Metric Distribution "page.fetched_comments_count"
   UpdatedCommentsCount        :: Metric Distribution "page.updated_comments_count"
