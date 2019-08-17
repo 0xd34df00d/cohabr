@@ -97,8 +97,8 @@ httpGenericHandler ctx ex = Just $ track FailedHttpRequestsCount >> writeLog Log
 httpHardTimeoutHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpTimeout -> Maybe (m ())
 httpHardTimeoutHandler ctx _ = Just $ track HardTimeoutHttpCount >> writeLog LogError [i|Hard timeout for #{ctx}|]
 
-handleHttpExceptionPost :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> [HandlerMaybe m ()]
-handleHttpExceptionPost habrPostId marker =
+handleHttpExceptionPost :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> a -> [HandlerMaybe m a]
+handleHttpExceptionPost habrPostId marker defVal = ($> defVal) <$>
   [ HandlerMaybe $ httpForbiddenHandler habrPostId marker
   , HandlerMaybe $ httpTimeoutHandler habrPostId
   , HandlerMaybe $ httpGenericHandler habrPostId
@@ -113,7 +113,7 @@ httpWithTimeout url = do
   either (const $ throw HttpTimeout) id <$> liftIO (threadDelay (timeout * 1000000) `race` simpleHttp url)
 
 refetchPost :: MetricableSqlMonad r m => PostHabrId -> m ()
-refetchPost habrPostId = catchesMaybe (handleHttpExceptionPost habrPostId "<a href=\"https://habr.com/ru/users/") $ do
+refetchPost habrPostId = catchesMaybe (handleHttpExceptionPost habrPostId "<a href=\"https://habr.com/ru/users/" ()) $ do
   writeLog LogDebug $ "fetching post " <> show habrPostId
 
   fetchAndParse habrPostId >>= \case
@@ -226,7 +226,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
   threadDelay 100000
 
 isRssNewer :: MetricableSqlMonad r m => PostPKey -> PostHabrId -> m Bool
-isRssNewer postPKey habrPostId = catchesMaybe (($> False) <$> handleHttpExceptionPost habrPostId "<!DOCTYPE") $ do
+isRssNewer postPKey habrPostId = catchesMaybe (handleHttpExceptionPost habrPostId "<!DOCTYPE" False) $ do
   rss <- httpWithTimeout $ rssUrlForPostId $ getHabrId habrPostId
   case lastCommentDate rss of
     Nothing -> pure False
