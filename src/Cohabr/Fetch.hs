@@ -94,11 +94,15 @@ httpTimeoutHandler _ _ = Nothing
 httpGenericHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpException -> Maybe (m ())
 httpGenericHandler ctx ex = Just $ track FailedHttpRequestsCount >> writeLog LogError [i|Generic HTTP error for #{ctx}: #{ex}|]
 
+httpHardTimeoutHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpTimeout -> Maybe (m ())
+httpHardTimeoutHandler ctx _ = Just $ track HardTimeoutHttpCount >> writeLog LogError [i|Hard timeout for #{ctx}|]
+
 handleHttpExceptionPost :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> [HandlerMaybe m ()]
 handleHttpExceptionPost habrPostId marker =
   [ HandlerMaybe $ httpForbiddenHandler habrPostId marker
   , HandlerMaybe $ httpTimeoutHandler habrPostId
   , HandlerMaybe $ httpGenericHandler habrPostId
+  , HandlerMaybe $ httpHardTimeoutHandler habrPostId
   ]
 
 data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
