@@ -4,6 +4,7 @@
 
 module Cohabr.Fetch.ErrorHandling
 ( HandlerMaybe
+, handler
 , catchesMaybe
 
 , httpForbiddenHandler
@@ -41,6 +42,9 @@ import Cohabr.Db.SqlMonad
 
 data HandlerMaybe m a = forall e. Exception e => HandlerMaybe (e -> Maybe (m a))
 deriving instance Functor m => Functor (HandlerMaybe m)
+
+handler :: Exception e => (e -> Maybe (m a)) -> HandlerMaybe m a
+handler = HandlerMaybe
 
 catchesMaybe :: (MonadCatch m) => [HandlerMaybe m a] -> m a -> m a
 catchesMaybe handlers act = act `catch` tryHandlers
