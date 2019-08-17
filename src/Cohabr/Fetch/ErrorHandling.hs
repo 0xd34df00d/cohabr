@@ -46,7 +46,7 @@ catchesMaybe :: (MonadCatch m) => [HandlerMaybe m a] -> m a -> m a
 catchesMaybe handlers act = act `catch` tryHandlers
   where
     tryHandlers e | Just hAct <- msum $ tryHandler e <$> handlers = hAct
-                  | otherwise = throw e
+                  | otherwise = throwM e
     tryHandler e (HandlerMaybe handler)
       | Just e' <- fromException e = handler e'
       | otherwise = Nothing
