@@ -89,7 +89,7 @@ fetchAndParse habrPostId = do
     force' = liftIO . evaluate . force
 
 pollRSS :: MetricableSqlMonad r m => m ()
-pollRSS = do
+pollRSS = catchesMaybe handlers $ do
   rss <- httpWithTimeout "https://habr.com/ru/rss/all/all/?fl=ru%2Cen"
   case recentArticles rss of
     Nothing -> writeLog LogError "No posts at all detected in the RSS feed"
@@ -99,6 +99,13 @@ pollRSS = do
       track NewPostsCount $ fromIntegral $ length recs
       writeLog LogDebug $ "Got missing posts: " <> show recs
       mapM_ refetchPost recs
+  where
+    handlers =
+      [ handler $ httpTimeoutHandler rssStr
+      , handler $ httpGenericHandler rssStr
+      , handler $ httpHardTimeoutHandler rssStr
+      ]
+    rssStr = "RSS" :: String
 
 data UpdatesThread = UpdatesThread
   { monadRunner :: MetricableSqlMonadRunner
