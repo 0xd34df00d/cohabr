@@ -184,7 +184,7 @@ updatesThreadServer ut@UpdatesThread { .. } = forever $ do
 
   moscowNow <- utcTimeToMoscowTime . zonedTimeToUTC <$> liftIO getZonedTime
 
-  monadRunner $ handleAll (\ex -> writeLog LogError $ "Unable to process " <> show postHabrId <> ":\n" <> show ex) $ do
+  monadRunner $ do
     if moscowNow `diffLocalTime` published < week
        then refetchPost postHabrId
        else whenM (isRssNewer postPKey postHabrId) $ refetchPost postHabrId
