@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction, ConstraintKinds, RankNTypes, ExistentialQuantification #-}
-{-# LANGUAGE OverloadedStrings, RecordWildCards, LambdaCase, QuasiQuotes #-}
-{-# LANGUAGE DeriveDataTypeable, DeriveAnyClass, DeriveFunctor, StandaloneDeriving #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, LambdaCase #-}
 
 module Cohabr.Fetch
 ( refetchPost
