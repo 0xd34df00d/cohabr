@@ -16,30 +16,21 @@ module Cohabr.Fetch
 , checkUpdates
 ) where
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.HashSet as HS
 import Control.Concurrent
-import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.DeepSeq
-import Control.Exception(evaluate, throw)
+import Control.Exception(evaluate)
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Extra
 import Control.Monad.Reader
 import Data.Default
-import Data.Functor
 import Data.List
 import Data.Monoid
 import Data.Ord
-import Data.String.Interpolate
 import Data.Time.Clock
 import Data.Time.LocalTime
-import Data.Typeable
-import Network.HTTP.Client(HttpException(..), HttpExceptionContent(..))
-import Network.HTTP.Conduit hiding(Proxy)
-import Network.HTTP.Types.Status(statusCode)
 import Numeric.Natural
 import Text.HTML.DOM(parseLBS)
 import Text.XML.Cursor(fromDocument, node)
@@ -50,6 +41,7 @@ import Cohabr.Db.Inserts
 import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
+import Cohabr.Fetch.ErrorHandling
 import Cohabr.Metrics
 import Cohabr.MoscowTime
 import Habr.Normalizer
@@ -57,60 +49,6 @@ import Habr.Parser
 import Habr.Types
 import Habr.RSS
 import Habr.Util
-
-newtype HttpConfig = HttpConfig
-  { httpTimeout :: Int
-  } deriving (Eq, Ord, Show)
-
-type MetricableSqlMonad r m = (SqlMonad r m, Has HttpConfig r, MonadCatch m, MonadMetrics m)
-
-type MetricableSqlMonadRunner = forall a. (forall r m. MetricableSqlMonad r m => m a) -> IO a
-
-data HandlerMaybe m a = forall e. Exception e => HandlerMaybe (e -> Maybe (m a))
-deriving instance Functor m => Functor (HandlerMaybe m)
-
-catchesMaybe :: (MonadCatch m) => [HandlerMaybe m a] -> m a -> m a
-catchesMaybe handlers act = act `catch` tryHandlers
-  where
-    tryHandlers e | Just hAct <- msum $ tryHandler e <$> handlers = hAct
-                  | otherwise = throw e
-    tryHandler e (HandlerMaybe handler)
-      | Just e' <- fromException e = handler e'
-      | otherwise = Nothing
-
-httpForbiddenHandler :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> HttpException -> Maybe (m ())
-httpForbiddenHandler habrPostId marker (HttpExceptionRequest _ (StatusCodeException resp respContents))
-  | sc == 403 && marker `BS.isInfixOf` respContents = Just act
-  | sc == 404 = Just act
-  where
-    sc = statusCode $ responseStatus resp
-    act = track DeniedPagesCount >> writeLog LogInfo [i|Post is unavailable: #{habrPostId}|]
-httpForbiddenHandler _ _ _ = Nothing
-
-httpTimeoutHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpException -> Maybe (m ())
-httpTimeoutHandler ctx (HttpExceptionRequest _ ResponseTimeout) = Just $ track TimeoutHttpCount >> writeLog LogWarn ("Request timeout: " <> show ctx)
-httpTimeoutHandler _ _ = Nothing
-
-httpGenericHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpException -> Maybe (m ())
-httpGenericHandler ctx ex = Just $ track FailedHttpRequestsCount >> writeLog LogError [i|Generic HTTP error for #{ctx}: #{ex}|]
-
-httpHardTimeoutHandler :: (MetricableSqlMonad r m, Show ctx) => ctx -> HttpTimeout -> Maybe (m ())
-httpHardTimeoutHandler ctx _ = Just $ track HardTimeoutHttpCount >> writeLog LogError [i|Hard timeout for #{ctx}|]
-
-handleHttpExceptionPost :: MetricableSqlMonad r m => PostHabrId -> BS.ByteString -> a -> [HandlerMaybe m a]
-handleHttpExceptionPost habrPostId marker defVal = ($> defVal) <$>
-  [ HandlerMaybe $ httpForbiddenHandler habrPostId marker
-  , HandlerMaybe $ httpTimeoutHandler habrPostId
-  , HandlerMaybe $ httpGenericHandler habrPostId
-  , HandlerMaybe $ httpHardTimeoutHandler habrPostId
-  ]
-
-data HttpTimeout = HttpTimeout deriving (Show, Typeable, Exception)
-
-httpWithTimeout :: (MonadReader r m, Has HttpConfig r, MonadIO m) => String -> m LBS.ByteString
-httpWithTimeout url = do
-  timeout <- asks $ httpTimeout . extract
-  either (const $ throw HttpTimeout) id <$> liftIO (threadDelay (timeout * 1000000) `race` simpleHttp url)
 
 refetchPost :: MetricableSqlMonad r m => PostHabrId -> m ()
 refetchPost habrPostId = catchesMaybe (handleHttpExceptionPost habrPostId "<a href=\"https://habr.com/ru/users/" ()) $ do
