@@ -61,6 +61,7 @@ refetchPost habrPostId = catchesMaybe (handleHttpExceptionPost habrPostId "<a hr
   fetchAndParse habrPostId >>= \case
     Left errs -> writeLog LogError $ unlines $ "Unable to parse " <> show habrPostId : errs
     Right (post, comments) -> do
+      track LastPageFetch
       let commentsLength = getSum $ mconcat $ Sum . length <$> comments
       writeLog LogDebug "fetched!"
       trackLogging FetchedCommentsCount $ fromIntegral commentsLength
