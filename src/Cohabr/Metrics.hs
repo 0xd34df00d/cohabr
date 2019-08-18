@@ -65,7 +65,7 @@ data Metric tracker name where
   BackfillQueueSize           :: Metric Countdown    "cohabr.backfill.queue_size"
 
   LastRssFetch                :: Metric Timestamp    "cohabr.last.rssfetch_ts"
-  LastPageFetch               :: Metric Timestamp    "cohabr.last.rssfetch_ts"
+  LastPageFetch               :: Metric Timestamp    "cohabr.last.pagefetch_ts"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
