@@ -19,10 +19,10 @@ import Database.Beam hiding(timestamp)
 import Database.Beam.Postgres
 
 import Cohabr.Db
-import Cohabr.Db.Conversions
 import Cohabr.Db.CommentsLoader
-import Cohabr.Db.Inserts
+import Cohabr.Db.Conversions
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.Inserts
 import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
