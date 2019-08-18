@@ -13,6 +13,7 @@ module Cohabr.Metrics
 , module SME
 ) where
 
+import qualified Data.Text as T
 import Control.Monad.IO.Class
 import Data.Time.Clock.POSIX
 import Data.Proxy
@@ -21,6 +22,7 @@ import System.Metrics
 import System.Metrics.Counter as TC
 import System.Metrics.Distribution as TD
 import System.Metrics.Gauge as TG
+import System.Metrics.Label as TL
 import System.CPUTime
 import Type.Reflection
 
@@ -66,6 +68,7 @@ data Metric tracker name where
 deriving instance Eq (Metric tracker name)
 deriving instance Ord (Metric tracker name)
 
+
 newtype Countdown = Countdown Gauge
 
 data CountdownAction = SetCountdown Int | DecCountdown
@@ -78,6 +81,19 @@ instance TrackerLike Countdown where
                   DecCountdown -> TG.dec g
                   SetCountdown n -> TG.set g $ fromIntegral n
   createTracker name store = Countdown <$> createGauge name store
+
+
+newtype Timestamp = Timestamp Label
+
+instance TrackerLike Timestamp where
+  type TrackAction Timestamp m = m ()
+  track metric = do
+    Timestamp l <- getTracker metric
+    liftIO $ do
+      utc <- getCurrentTime
+      TL.set l $ T.pack $ show utc
+  createTracker name store = Timestamp <$> createLabel name store
+
 
 data Timing = Timing
   { wallTime :: !Double
