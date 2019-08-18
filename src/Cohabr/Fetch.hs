@@ -99,6 +99,7 @@ pollRSS = catchesMaybe handlers $ do
   case recentArticles rss of
     Nothing -> writeLog LogError "No posts at all detected in the RSS feed"
     Just ids -> do
+      track LastRssFetch
       writeLog LogDebug $ "Got new posts: " <> show ids
       recs <- selectMissingPosts $ HabrId <$> ids
       track NewPostsCount $ fromIntegral $ length recs

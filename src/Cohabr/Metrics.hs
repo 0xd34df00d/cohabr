@@ -63,6 +63,8 @@ data Metric tracker name where
   OutdatedItemsCount          :: Metric Gauge        "cohabr.updater.outdated_count"
 
   BackfillQueueSize           :: Metric Countdown    "cohabr.backfill.queue_size"
+
+  LastRssFetch                :: Metric Timestamp    "cohabr.last.rssfetch_ts"
   deriving (Typeable)
 
 deriving instance Eq (Metric tracker name)
