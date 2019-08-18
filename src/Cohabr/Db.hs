@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE Strict #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -O0 #-}
 
