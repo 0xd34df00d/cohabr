@@ -104,8 +104,7 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                                                              | otherwise = do
   insertVersionHubs postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ reader (stmtLogger . extract) >>=
-      \logger -> logger LogWarn [i|Unexpected removed hubs count for post version #{postVersionId} #{isNewVersion}|]
+  unless (remCnt == length removed) $ writeLog LogWarn [i|Unexpected removed hubs count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
     remove hubs = length <$> runPgDeleteReturningList
@@ -119,8 +118,7 @@ updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                                                              | otherwise = do
   insertVersionTags postVersionId added
   remCnt <- remove removed
-  unless (remCnt == length removed) $ reader (stmtLogger . extract) >>=
-      \logger -> logger LogWarn [i|Unexpected removed tags count for post version #{postVersionId} #{isNewVersion}|]
+  unless (remCnt == length removed) $ writeLog LogWarn [i|Unexpected removed tags count for post version #{postVersionId} #{isNewVersion}|]
   where
     remove [] = pure 0
     remove tags = length <$> runPgDeleteReturningList
