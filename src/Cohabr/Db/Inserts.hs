@@ -167,9 +167,6 @@ insertCommentTreeWParent postId parentId = mapM_ $ \Node { .. } -> do
 makeCommentRecord :: PostPKey -> Maybe CommentPKey -> Maybe UserPKey -> HT.Comment -> forall s. CommentT (QExpr Postgres s)
 makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case contents of
   HT.CommentDeleted -> common
-    { cDeleted = val_ True
-    , cChanged = val_ False
-    }
   HT.CommentExisting { .. } -> common
     { cDeleted = val_ False
     , cUser = val_ $ Just $ HT.username user
@@ -190,10 +187,10 @@ makeCommentRecord postId parentCommentId userId HT.Comment { .. } = case content
       , cUser = val_ Nothing
       , cDate = val_ Nothing
       , cText = val_ Nothing
-      , cChanged = undefined
+      , cChanged = val_ False
       , cScorePlus = val_ Nothing
       , cScoreMinus = val_ Nothing
-      , cDeleted = undefined
+      , cDeleted = val_ True
       , cAuthor = val_ Nothing
       }
 
