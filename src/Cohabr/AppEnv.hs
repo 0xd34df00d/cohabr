@@ -7,8 +7,10 @@ import GHC.Generics
 
 import Cohabr.Db.SqlMonad
 import Cohabr.Fetch
+import Cohabr.Logger
 
 data AppEnv = AppEnv
   { httpConfigPart :: HttpConfig
   , sqlEnvPart :: SqlEnv
-  } deriving (Generic, Has HttpConfig, Has SqlEnv)
+  , loggerHolder :: LoggerHolder
+  } deriving (Generic, Has HttpConfig, Has SqlEnv, Has LoggerHolder)

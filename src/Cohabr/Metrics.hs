@@ -24,7 +24,7 @@ import System.Metrics.Gauge as TG
 import System.CPUTime
 import Type.Reflection
 
-import Cohabr.Db.SqlMonad
+import Cohabr.Logger
 import System.Metrics.Extensible as SME
 
 data Metric tracker name where
@@ -118,19 +118,19 @@ time act = do
   pure (Timing { .. }, result)
 
 trackLogging :: forall r m name trackerTy valTy.
-                (SqlMonad r m, MonadMetrics m, KnownSymbol name, TrackerLike trackerTy, Show valTy, TrackAction trackerTy m ~ (valTy -> m ()))
+                (LoggerMonad r m, MonadMetrics m, KnownSymbol name, TrackerLike trackerTy, Show valTy, TrackAction trackerTy m ~ (valTy -> m ()))
                 => Metric trackerTy name -> valTy -> m ()
 trackLogging metric t = do
   writeLog LogDebug $ "Done " <> symbolVal (Proxy :: Proxy name) <> ": " <> show t
   track metric t
 
-timed :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Timer name -> m a -> m a
+timed :: (LoggerMonad r m, MonadMetrics m, KnownSymbol name) => Metric Timer name -> m a -> m a
 timed metric act = do
   (t, res) <- time act
   trackLogging metric t
   pure res
 
-timedAvg :: (SqlMonad r m, MonadMetrics m, KnownSymbol name) => Metric Timer name -> Int -> m a -> m a
+timedAvg :: (LoggerMonad r m, MonadMetrics m, KnownSymbol name) => Metric Timer name -> Int -> m a -> m a
 timedAvg metric len act = do
   (t, res) <- time act
   trackLogging metric $ t `adjustAvg` len

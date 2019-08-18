@@ -22,6 +22,7 @@ import Cohabr.Db(PostHabrId)
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.SqlMonad
 import Cohabr.Fetch
+import Cohabr.Logger
 import Cohabr.Metrics
 
 withConnection :: (MonadMask m, MonadIO m) => String -> (PGS.Connection -> m c) -> m c
@@ -78,21 +79,20 @@ options = Options
     httpConfigParser = HttpConfig
                      <$> option auto (long "http-timeout" <> help "Timeout for HTTP connections, s" <> value 120 <> showDefault)
 
-mkLoggers :: Options -> IO (LoggerHolder, IO ())
+mkLoggers :: Options -> IO (LoggerHolder, SqlLoggerHolder, IO ())
 mkLoggers Options { .. } = do
   cache <- newTimeCache simpleTimeFormat
-  (sqlLogger, sqlCleanup) <- newTimedFastLogger cache sqlLoggerType
-  (restLogger, restCleanup) <- newTimedFastLogger cache normalLoggerType
-  let logger level msg | level == LogSqlStmt = liftIO $ sqlLogger logStr
-                       | otherwise = liftIO $ restLogger logStr
+  (sqlLoggerRaw, sqlCleanup) <- newTimedFastLogger cache sqlLoggerType
+  (restLoggerRaw, restCleanup) <- newTimedFastLogger cache normalLoggerType
+  let sqlLogger msg = liftIO $ sqlLoggerRaw $ \ts -> toLogStr ts <> " " <> toLogStr msg <> "\n\n"
+  let restLogger level msg = liftIO $ restLoggerRaw logStr
         where logStr ts = toLogStr ts <> " [" <> levelStr level <> "] " <> toLogStr msg <> "\n\n"
-  pure (LoggerHolder logger, sqlCleanup >> restCleanup)
+  pure (LoggerHolder restLogger, SqlLoggerHolder sqlLogger, sqlCleanup >> restCleanup)
   where
     normalLoggerType | logFilePath == "-" = LogStdout defaultBufSize
                      | otherwise = LogFileNoRotate logFilePath defaultBufSize
     sqlLoggerType | Just path <- sqlFilePath = LogFileNoRotate path $ defaultBufSize * 10
                   | otherwise = LogNone
-    levelStr LogSqlStmt = "sql"
     levelStr LogDebug = "debug"
     levelStr LogInfo = "info"
     levelStr LogWarn = "warn"
@@ -106,11 +106,12 @@ main :: IO ()
 main = do
   opts@Options { .. } <- execParser $ info (options <**> helper) $ fullDesc <> progDesc "Habr scraper"
 
-  (getLogger -> stmtLogger, loggerCleanup) <- mkLoggers opts
+  (loggerHolder, getSqlLogger -> stmtLogger, loggerCleanup) <- mkLoggers opts
+  let logger = getLogger loggerHolder
 
   ekgServer <- forkServer monitoringHost monitoringPort
   withMetricsStore ekgServer $ \metrics -> do
-    let appEnv conn = AppEnv { sqlEnvPart = SqlEnv { .. }, httpConfigPart = httpConfig }
+    let appEnv conn = AppEnv { sqlEnvPart = SqlEnv { .. }, httpConfigPart = httpConfig, loggerHolder = loggerHolder }
 
     let runFullMonad act = withConnection dbName $ \conn -> runReaderT (runMetricsT act metrics) $ appEnv conn
 
@@ -127,14 +128,14 @@ main = do
         checkUpdatesHandle <- asyncRepeatedly (1 / 60) updatesChecker
 
         let sigintHandler = Catch $ do
-              stmtLogger LogDebug "shutting down..."
+              logger LogDebug "shutting down..."
               mapM_ cancel [rssPollHandle, checkUpdatesHandle]
 
         void $ installHandler sigINT sigintHandler Nothing
         void $ installHandler sigTERM sigintHandler Nothing
 
         mapM_ waitCatch [rssPollHandle, checkUpdatesHandle]
-        stmtLogger LogDebug "Threads finished"
+        logger LogDebug "Threads finished"
       BackfillMode { .. } -> do
         idsStrs <- lines <$> readFile inputFilePath
         let ids = read <$> idsStrs
@@ -144,5 +145,5 @@ main = do
             track BackfillQueueSize DecCountdown
             refetchPost $ HabrId habrId
             liftIO $ threadDelay 100000
-  stmtLogger LogDebug "bye-bye!"
+  logger LogDebug "bye-bye!"
   loggerCleanup

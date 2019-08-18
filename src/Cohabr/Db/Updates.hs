@@ -23,7 +23,6 @@ module Cohabr.Db.Updates
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Control.Monad
-import Control.Monad.Reader
 import Data.Char
 import Data.Maybe
 import Data.Monoid
@@ -43,6 +42,7 @@ import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.UpdateField
 import Cohabr.Db.Utils
+import Cohabr.Logger
 import qualified Habr.Types as HT
 
 data RawPostVersion = RawPostVersion
@@ -63,7 +63,7 @@ isNullPostUpdate PostUpdateActions { .. } = null postUpdates
                                          && isNullDiff hubsDiff && isNullDiff tagsDiff
                                          && isNothing newPostVersion
 
-updatePost :: SqlMonad r m => PostUpdateActions -> m ()
+updatePost :: (LoggerMonad r m, SqlMonad r m) => PostUpdateActions -> m ()
 updatePost pua@PostUpdateActions { .. } | isNullPostUpdate pua = pure ()
                                         | otherwise = do
   ensureHubsExist $ added hubsDiff
@@ -99,7 +99,7 @@ updatePostVersion postId (Just RawPostVersion { .. }) =
       , pvContent = val_ rawPVText
       }
 
-updateVersionHubs :: (SqlMonad r m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Hub -> m ()
+updateVersionHubs :: (SqlMonad r m, LoggerMonad r m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Hub -> m ()
 updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionHubs postVersionId allNew
                                                              | otherwise = do
   insertVersionHubs postVersionId added
@@ -113,7 +113,7 @@ updateVersionHubs postVersionId isNewVersion ListDiff { .. } | isNewVersion = in
                       (\h -> phHub h `in_` (val_ . makeHubId <$> hubs) &&. phPostVersion h ==. val_ postVersionId)
                       phPostVersion)      -- TODO if we can count better
 
-updateVersionTags :: (SqlMonad r m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Tag -> m ()
+updateVersionTags :: (SqlMonad r m, LoggerMonad r m, MonadBeam Postgres m) => PostVersionPKey -> Bool -> ListDiff HT.Tag -> m ()
 updateVersionTags postVersionId isNewVersion ListDiff { .. } | isNewVersion = insertVersionTags postVersionId allNew
                                                              | otherwise = do
   insertVersionTags postVersionId added

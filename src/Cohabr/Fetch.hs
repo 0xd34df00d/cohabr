@@ -41,6 +41,7 @@ import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
 import Cohabr.Fetch.ErrorHandling
+import Cohabr.Logger
 import Cohabr.Metrics
 import Cohabr.MoscowTime
 import Habr.Normalizer
@@ -48,6 +49,10 @@ import Habr.Parser
 import Habr.Types
 import Habr.RSS
 import Habr.Util
+
+type MetricableSqlMonad r m = (LoggerMonad r m, SqlMonad r m, Has HttpConfig r, MonadCatch m, MonadMetrics m)
+
+type MetricableSqlMonadRunner = forall a. (forall r m. MetricableSqlMonad r m => m a) -> IO a
 
 refetchPost :: MetricableSqlMonad r m => PostHabrId -> m ()
 refetchPost habrPostId = catchesMaybe (handleHttpExceptionPost habrPostId "<a href=\"https://habr.com/ru/users/" ()) $ do

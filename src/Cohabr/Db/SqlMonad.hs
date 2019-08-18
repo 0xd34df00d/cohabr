@@ -4,34 +4,30 @@
 module Cohabr.Db.SqlMonad
 ( SqlEnv(..)
 , LogMessageContext(..)
-, Logger
-, LoggerHolder(..)
 , SqlMonad
+, SqlLoggerHolder(..)
 , withTransactionPg
 , runPg
 , inReader
-, writeLog
 
 , module X
 ) where
 
 import qualified Database.PostgreSQL.Simple as PGS
 import Control.Monad.Reader
+import Control.Monad.Reader.Has as X
 import Database.Beam.Postgres
 import GHC.Stack
 
-import Control.Monad.Reader.Has as X
+import Cohabr.Logger
 
-data LogMessageContext = LogSqlStmt | LogDebug | LogInfo | LogWarn | LogError
-  deriving (Eq, Ord, Show)
+type SqlLogger = forall m. (HasCallStack, MonadIO m) => String -> m ()
 
-type Logger = forall m. (HasCallStack, MonadIO m) => LogMessageContext -> String -> m ()
-
-newtype LoggerHolder = LoggerHolder { getLogger :: Logger }
+newtype SqlLoggerHolder = SqlLoggerHolder { getSqlLogger :: SqlLogger }
 
 data SqlEnv = SqlEnv
   { conn :: Connection
-  , stmtLogger :: Logger
+  , stmtLogger :: SqlLogger
   }
 
 type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
@@ -39,15 +35,12 @@ type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
 withTransactionPg :: SqlMonad r m => Pg a -> m a
 withTransactionPg pg = do
   SqlEnv { .. } <- asks extract
-  liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
+  liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug stmtLogger conn pg
 
 runPg :: SqlMonad r m => Pg a -> m a
 runPg pg = do
   SqlEnv { .. } <- asks extract
-  liftIO $ runBeamPostgresDebug (stmtLogger LogSqlStmt) conn pg
+  liftIO $ runBeamPostgresDebug stmtLogger conn pg
 
 inReader :: MonadReader r mr => (m a -> mr b) -> ReaderT r m a -> mr b
 inReader runner act = ask >>= \env -> runner $ runReaderT act env
-
-writeLog :: (HasCallStack, SqlMonad r m) => LogMessageContext -> String -> m ()
-writeLog ctx str = reader (stmtLogger . extract) >>= \logger -> logger ctx str
