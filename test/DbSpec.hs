@@ -26,6 +26,7 @@ import Cohabr.Db.Inserts
 import Cohabr.Db.Queries
 import Cohabr.Db.SqlMonad
 import Cohabr.Db.Updates
+import Cohabr.Logger
 import qualified Habr.Types as HT
 import Habr.Util
 
@@ -334,8 +335,8 @@ withConnection = bracket
   (PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = "habr_test" })
   PGS.close
 
-runSqlMonad :: (forall r m. SqlMonad r m => m a) -> IO a
-runSqlMonad act = withConnection $ \conn -> runReaderT act SqlEnv { conn = conn, stmtLogger = \_ _ -> pure () }
+runSqlMonad :: (forall r m. (SqlMonad r m, Has LoggerHolder r) => m a) -> IO a
+runSqlMonad act = withConnection $ \conn -> runReaderT act (SqlEnv { conn = conn, stmtLogger = \_ -> pure () }, LoggerHolder $ \_ _ -> pure ())
 
 clearTables :: IO ()
 clearTables = void $ withConnection $ \conn ->
