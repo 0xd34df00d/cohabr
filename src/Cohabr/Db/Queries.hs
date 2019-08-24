@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts, RecordWildCards #-}
+{-# LANGUAGE Strict #-}
 
 module Cohabr.Db.Queries where
 
