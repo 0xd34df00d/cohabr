@@ -7,6 +7,10 @@ module Cohabr.Db.Conversions
 , fromStoredTag
 , flagToStr
 , strToFlag
+
+, UserDenorm(..)
+, PostDenorm(..)
+, ppvToPost
 ) where
 
 import qualified Data.HashMap.Strict as HM
@@ -48,3 +52,37 @@ strToFlagMap :: HM.HashMap T.Text HT.Flag
 strToFlagMap = HM.fromList [ (flagToStr flag, flag)
                            | flag <- [minBound .. maxBound]
                            ]
+
+data UserDenorm = UserDenorm
+  { dbUsername :: T.Text
+  , dbAvatarBig :: Maybe T.Text
+  }
+
+data PostDenorm = PostDenorm
+  { dbPost :: Post
+  , dbPostVersion :: PostVersion
+  , dbPostAuthor :: Maybe UserDenorm
+  }
+
+ppvToPost :: PostDenorm -> HT.PostFromDb
+ppvToPost PostDenorm { .. } = HT.Post
+  { title = pvTitle
+  , body = pvContent
+  , hubs = []
+  , tags = []
+  , flags = []
+  , link = HT.Link <$> (HT.URL <$> pLink) <*> pLinkName
+  , user = userDenorm2Info <$> dbPostAuthor
+  , timestamp = pPublished
+  , postStats = HT.PostStats <$> votes' <*> views'
+  , postType = pType
+  }
+  where
+    Post { .. } = dbPost
+    PostVersion { .. } = dbPostVersion
+    userDenorm2Info UserDenorm { .. } = HT.UserInfo
+      { username = dbUsername
+      , avatar = maybe HT.DefaultAvatar (HT.CustomAvatar . HT.URL) dbAvatarBig
+      }
+    votes' = HT.Votes <$> pScorePlus <*> pScoreMinus
+    views' = HT.PostViews <$> pOrigViewsNearly <*> pOrigViews
