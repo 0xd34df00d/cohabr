@@ -1,5 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds, TypeFamilies #-}
 {-# LANGUAGE Strict #-}
 
 module Habr.Types where
@@ -85,8 +87,14 @@ data Link = Link
 
 data PostType = TyPost | TyArticle | TyNews deriving (Eq, Ord, Show, Enum, Bounded, Data, Generic, NFData)
 
-data Post = Post
-  { title :: T.Text
+data Source = Parsed | FromDb
+
+type family MapSource s ty where
+  MapSource 'Parsed ty = ty
+  MapSource 'FromDb ty = Maybe ty
+
+data PostT src = Post
+  { title :: MapSource src T.Text
   , body :: T.Text
   , hubs :: [Hub]
   , tags :: [Tag]
@@ -96,4 +104,15 @@ data Post = Post
   , timestamp :: LocalTime
   , postStats :: PostStats
   , postType :: PostType
-  } deriving (Eq, Ord, Show, Data, Generic, NFData)
+  } deriving (Generic)
+
+type Post = PostT 'Parsed
+type PostFromDb = PostT 'FromDb
+
+deriving instance Eq Post
+deriving instance Data Post
+deriving instance NFData Post
+
+deriving instance Eq PostFromDb
+deriving instance Data PostFromDb
+deriving instance NFData PostFromDb
