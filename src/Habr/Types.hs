@@ -61,7 +61,6 @@ data PostViews = PostViews
 
 data PostStats = PostStats
   { votes :: Votes
-  , bookmarks :: Int
   , views :: PostViews
   } deriving (Eq, Ord, Show, Data, Generic, NFData)
 

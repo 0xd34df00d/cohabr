@@ -115,7 +115,6 @@ parsePostTime root = root @>. [jq|.post__time|] >>= parseHumanReadableTimestamp
 parsePostStats :: MonadError ParseError m => Cursor -> m PostStats
 parsePostStats cur = do
   votes <- parseVotes cur
-  bookmarks <- cur @>. [jq|.js-favs_count|] >>= readInt
   views <- cur @>. [jq|.post-stats__views-count|] >>= liftEither . runExcept . parseViews
   pure PostStats { .. }
   where parseViews t = PostViews True <$> readInt t <|> PostViews False <$> readApproxInt (T.unpack t)
