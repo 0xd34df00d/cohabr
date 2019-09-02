@@ -3,11 +3,9 @@
 module Main where
 
 import qualified Data.ByteString.Char8 as BS
-import qualified Database.PostgreSQL.Simple as PGS
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Monad
-import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Default
@@ -21,19 +19,10 @@ import Cohabr.AppEnv
 import Cohabr.Db(PostHabrId)
 import Cohabr.Db.HelperTypes
 import Cohabr.Db.SqlMonad
+import Cohabr.Db.Utils
 import Cohabr.Fetch
 import Cohabr.Logger
 import Cohabr.Metrics
-
-withConnection :: (MonadMask m, MonadIO m) => String -> (PGS.Connection -> m c) -> m c
-withConnection dbName = bracket
-  (liftIO $ do
-    conn <- PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = dbName }
-    -- I really regret doing this, but the rest of the DB has been created assuming
-    -- Moscow locale, and let's at least be consistent.
-    void $ PGS.execute_ conn "SET timezone = 'Europe/Moscow'"
-    pure conn)
-  (liftIO . PGS.close)
 
 data ExecutionMode
   = BackfillMode { inputFilePath :: String }

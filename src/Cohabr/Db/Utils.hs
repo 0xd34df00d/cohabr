@@ -14,10 +14,14 @@ module Cohabr.Db.Utils
 , SqlInvariantException
 , throwSql
 , (||^)
+
+, withConnection
 ) where
 
-import Control.Exception
+import qualified Database.PostgreSQL.Simple as PGS
+import Control.Exception(throw)
 import Control.Monad
+import Control.Monad.Catch
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres.Full hiding(insert)
@@ -68,3 +72,13 @@ throwSql = throw . SqlInvariantException callStack
 infix 1 ||^
 (||^) :: (Applicative f, HasCallStack) => Bool -> String -> f ()
 (||^) cond str = unless cond $ throwSql str
+
+withConnection :: (MonadMask m, MonadIO m) => String -> (PGS.Connection -> m c) -> m c
+withConnection dbName = bracket
+  (liftIO $ do
+    pgConn <- PGS.connect PGS.defaultConnectInfo { PGS.connectDatabase = dbName }
+    -- I really regret doing this, but the rest of the DB has been created assuming
+    -- Moscow locale, and let's at least be consistent.
+    void $ PGS.execute_ pgConn "SET timezone = 'Europe/Moscow'"
+    pure pgConn)
+  (liftIO . PGS.close)
