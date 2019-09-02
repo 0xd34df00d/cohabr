@@ -75,6 +75,23 @@ executables:
     - optparse-applicative
     - unix
 
+  server-exe:
+    main:                Main.hs
+    source-dirs:         app/Server
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -with-rtsopts=-T
+    dependencies:
+    - cohabr
+    - lucid
+    - servant
+    - servant-lucid
+    - servant-server
+    - wai
+    - warp
+
   dboneoff-exe:
     main:                Main.hs
     source-dirs:         app/DbOneOff
