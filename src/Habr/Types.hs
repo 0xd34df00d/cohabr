@@ -99,9 +99,9 @@ data PostT src = Post
   , tags :: [Tag]
   , flags :: [Flag]
   , link :: Maybe Link
-  , user :: UserInfo
+  , user :: MapSource src UserInfo
   , timestamp :: LocalTime
-  , postStats :: PostStats
+  , postStats :: MapSource src PostStats
   , postType :: PostType
   } deriving (Generic)
 
