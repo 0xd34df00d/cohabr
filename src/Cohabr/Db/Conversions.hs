@@ -8,7 +8,6 @@ module Cohabr.Db.Conversions
 , flagToStr
 , strToFlag
 
-, UserDenorm(..)
 , PostDenorm(..)
 , ppvToPost
 ) where
@@ -18,6 +17,7 @@ import qualified Data.Text as T
 
 import qualified Habr.Types as HT
 import Cohabr.Db
+import Cohabr.Db.Queries
 
 makeHubId :: HT.Hub -> T.Text
 makeHubId HT.Hub { .. } = prefix hubKind <> hubCode
@@ -53,26 +53,22 @@ strToFlagMap = HM.fromList [ (flagToStr flag, flag)
                            | flag <- [minBound .. maxBound]
                            ]
 
-data UserDenorm = UserDenorm
-  { dbUsername :: T.Text
-  , dbAvatarBig :: Maybe T.Text
-  }
 
 data PostDenorm = PostDenorm
   { dbPost :: Post
   , dbPostVersion :: PostVersion
-  , dbPostAuthor :: Maybe UserDenorm
+  , dbPostAuthor :: Maybe ShortUserInfo
   }
 
 ppvToPost :: PostDenorm -> HT.PostFromDb
 ppvToPost PostDenorm { .. } = HT.Post
   { title = pvTitle
   , body = pvContent
-  , hubs = []
-  , tags = []
-  , flags = []
+  , hubs = [] -- TODO
+  , tags = [] -- TODO
+  , flags = [] -- TODO
   , link = HT.Link <$> (HT.URL <$> pLink) <*> pLinkName
-  , user = userDenorm2Info <$> dbPostAuthor
+  , user = shortUser2info <$> dbPostAuthor
   , timestamp = pPublished
   , postStats = HT.PostStats <$> votes' <*> views'
   , postType = pType
@@ -80,9 +76,9 @@ ppvToPost PostDenorm { .. } = HT.Post
   where
     Post { .. } = dbPost
     PostVersion { .. } = dbPostVersion
-    userDenorm2Info UserDenorm { .. } = HT.UserInfo
-      { username = dbUsername
-      , avatar = maybe HT.DefaultAvatar (HT.CustomAvatar . HT.URL) dbAvatarBig
+    shortUser2info ShortUserInfo { .. } = HT.UserInfo
+      { username = username
+      , avatar = maybe HT.DefaultAvatar (HT.CustomAvatar . HT.URL) avatarBig
       }
     votes' = HT.Votes <$> pScorePlus <*> pScoreMinus
     views' = HT.PostViews <$> pOrigViewsNearly <*> pOrigViews

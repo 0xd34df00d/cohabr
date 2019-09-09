@@ -57,6 +57,17 @@ getUserAvatar :: SqlMonad r m => UserPKey -> m (Maybe UserAvatar)
 getUserAvatar userId = runPg $ runSelectReturningOne $ select query
   where query = filter_ (\ua -> uaUser ua ==. val_ userId) $ all_ $ cUserAvatars cohabrDb
 
+data ShortUserInfo = ShortUserInfo
+  { username :: T.Text
+  , avatarBig :: Maybe T.Text
+  }
+
+getShortUserInfo :: SqlMonad r m => UserPKey -> m (Maybe ShortUserInfo)
+getShortUserInfo userId = runPg $ do
+  maybeUsername <- runSelectReturningOne $ select $ fmap uUsername $ filter_ (\u -> uId u ==. val_ userId) $ all_ $ cUsers cohabrDb
+  avatarBig <- runSelectReturningOne $ select $ fmap uaBigImageUrl $ filter_ (\ua -> uaUser ua ==. val_ userId) $ all_ $ cUserAvatars cohabrDb
+  pure $ (\username -> ShortUserInfo { .. }) <$> maybeUsername
+
 data ShortCommentInfo = ShortCommentInfo
   { commentPKey :: CommentPKey
   , posVotes :: Maybe Int
