@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Cohabr.Db.Conversions
@@ -8,7 +8,8 @@ module Cohabr.Db.Conversions
 , flagToStr
 , strToFlag
 
-, PostDenorm(..)
+, PostDenorm
+, getPostDenorm
 , ppvToPost
 ) where
 
@@ -18,6 +19,7 @@ import qualified Data.Text as T
 import qualified Habr.Types as HT
 import Cohabr.Db
 import Cohabr.Db.Queries
+import Cohabr.Db.SqlMonad
 
 makeHubId :: HT.Hub -> T.Text
 makeHubId HT.Hub { .. } = prefix hubKind <> hubCode
@@ -53,12 +55,20 @@ strToFlagMap = HM.fromList [ (flagToStr flag, flag)
                            | flag <- [minBound .. maxBound]
                            ]
 
-
 data PostDenorm = PostDenorm
   { dbPost :: Post
   , dbPostVersion :: PostVersion
   , dbPostAuthor :: Maybe ShortUserInfo
   }
+
+getPostDenorm :: SqlMonad r m => PostHabrId -> m (Maybe PostDenorm)
+getPostDenorm habrId = findPostByHabrId habrId >>= \case
+  Nothing -> pure Nothing
+  Just (dbPost, dbPostVersion) -> do
+    dbPostAuthor <- case pAuthor dbPost of
+                         Nothing -> pure Nothing
+                         Just authorId -> getShortUserInfo authorId
+    pure $ Just PostDenorm { .. }
 
 ppvToPost :: PostDenorm -> HT.PostFromDb
 ppvToPost PostDenorm { .. } = HT.Post
