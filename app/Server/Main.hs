@@ -1,12 +1,14 @@
 {-# LANGUAGE DataKinds, TypeOperators, PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving, DerivingStrategies, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
 
+import Control.Monad.Except
+import Control.Monad.Reader
 import Data.Proxy
 import Lucid
 import Network.Wai
@@ -17,10 +19,13 @@ import Servant.HTML.Lucid
 
 import Habr.Types as HT
 import Cohabr.Db
+import Cohabr.Db.Loader
 import Cohabr.Db.HelperTypes
+import Cohabr.Db.SqlMonad
+import Cohabr.Db.Utils
 
 data ServedPost = ServedPost
-  { post :: HT.Post
+  { post :: HT.PostFromDb
   , comments :: HT.Comments
   }
 
@@ -39,7 +44,16 @@ cohabrServer :: Server CohabrAPI
 cohabrServer = postServer
   where
     postServer postId = do
-      pure undefined
+      maybeDenorm <- runSqlMonad $ getPostDenorm postId
+      case maybeDenorm of
+           Nothing -> throwError err404
+           Just denorm -> pure ServedPost { post = ppvToPost denorm, comments = undefined }
+
+dbName :: String
+dbName = "habr"
+
+runSqlMonad :: MonadIO mio => (forall r m. SqlMonad r m => m a) -> mio a
+runSqlMonad act = liftIO $ withConnection dbName $ \pgConn -> runReaderT act (SqlEnv { conn = pgConn, stmtLogger = \_ -> pure () })
 
 cohabrApp :: Application
 cohabrApp = serve cohabrAPI cohabrServer
