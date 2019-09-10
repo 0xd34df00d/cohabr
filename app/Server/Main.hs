@@ -2,13 +2,15 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving, DerivingStrategies, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
 
+import qualified Data.Text as T
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.Maybe
 import Data.Proxy
 import Lucid
 import Network.Wai
@@ -29,8 +31,23 @@ data ServedPost = ServedPost
   , comments :: HT.Comments
   }
 
+noTitleLabel :: T.Text
+noTitleLabel = "<Без заголовка>"
+
+instance ToHtml HT.PostFromDb where
+  toHtml HT.Post { .. } = div_ [class_ "post-wrapper"] $ do
+    h1_ [class_ "post-title"] $ toHtmlRaw $ fromMaybe noTitleLabel title
+    case link of
+         Nothing -> pure ()
+         Just Link { .. } -> div_ [class_ "post-link"] $
+                              a_ [href_ $ getUrl linkUrl] $ toHtml linkName
+    div_ [class_ "post"] $ toHtmlRaw body
+  toHtmlRaw = toHtml
+
 instance ToHtml ServedPost where
-  toHtml _ = strong_ "Yay"
+  toHtml ServedPost { .. } = doctypehtml_ $ do
+    head_ $ title_ $ toHtml $ fromMaybe noTitleLabel (HT.title post) <> " // cohabr"
+    body_ $ toHtml post
   toHtmlRaw = toHtml
 
 deriving newtype instance FromHttpApiData (HabrId tag)
