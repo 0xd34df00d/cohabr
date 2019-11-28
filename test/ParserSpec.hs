@@ -56,7 +56,6 @@ spec = beforeAll_ fetchPages $ do
                            }
       postStats `shouldBe` PostStats
                            { votes = Votes 5 3
-                           , bookmarks = 58
                            , views = PostViews False 37400
                            }
       postType `shouldBe` TyPost
@@ -78,7 +77,6 @@ spec = beforeAll_ fetchPages $ do
                          ]
       postStats `shouldBe` PostStats
                            { votes = Votes 27 21
-                           , bookmarks = 21
                            , views = PostViews False 12700
                            }
   where

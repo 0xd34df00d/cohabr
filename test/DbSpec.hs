@@ -47,7 +47,6 @@ testPost = HT.Post
   , HT.timestamp = LocalTime (ModifiedJulianDay 58648) midnight
   , HT.postStats = HT.PostStats
     { HT.votes = HT.Votes 10 20
-    , HT.bookmarks = 5
     , HT.views = HT.PostViews True 123
     }
   , HT.postType = HT.TyPost
@@ -66,7 +65,6 @@ changePostMeta post = post
   , HT.tags = [ HT.Tag "tag1", HT.Tag "tag2", HT.Tag "tag3" ]
   , HT.postStats = HT.PostStats
     { HT.votes = HT.Votes 12 22
-    , HT.bookmarks = 7
     , HT.views = HT.PostViews True 589
     }
   }
