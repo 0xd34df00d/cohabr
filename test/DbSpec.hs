@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, OverloadedLists, RecordWildCards, DuplicateRecordFields, TypeApplications #-}
-{-# LANGUAGE FlexibleContexts, RankNTypes #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes, GADTs #-}
 
 module DbSpec(spec) where
 
