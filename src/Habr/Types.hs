@@ -109,9 +109,11 @@ type Post = PostT 'Parsed
 type PostFromDb = PostT 'FromDb
 
 deriving instance Eq Post
+deriving instance Show Post
 deriving instance Data Post
 deriving instance NFData Post
 
 deriving instance Eq PostFromDb
+deriving instance Show PostFromDb
 deriving instance Data PostFromDb
 deriving instance NFData PostFromDb
