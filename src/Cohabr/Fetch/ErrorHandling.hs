@@ -25,7 +25,6 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Exception(throw)
 import Control.Monad.Catch
-import Control.Monad.Reader
 import Control.Monad.Reader.Has
 import Data.Functor
 import Data.String.Interpolate
@@ -88,5 +87,5 @@ newtype HttpConfig = HttpConfig
 
 httpWithTimeout :: (MonadReader r m, Has HttpConfig r, MonadIO m) => String -> m LBS.ByteString
 httpWithTimeout url = do
-  timeout <- asks $ httpTimeout . extract
+  timeout <- asks httpTimeout
   either (const $ throw HttpTimeout) id <$> liftIO (threadDelay (timeout * 1000000) `race` simpleHttp url)

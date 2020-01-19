@@ -14,8 +14,8 @@ module Cohabr.Db.SqlMonad
 ) where
 
 import qualified Database.PostgreSQL.Simple as PGS
-import Control.Monad.Reader
-import Control.Monad.Reader.Has as X
+import qualified Control.Monad.Reader as R
+import Control.Monad.Reader.Has as X hiding(update)
 import Database.Beam.Postgres
 import GHC.Stack
 
@@ -34,13 +34,13 @@ type SqlMonad r m = (MonadReader r m, Has SqlEnv r, MonadIO m)
 
 withTransactionPg :: SqlMonad r m => Pg a -> m a
 withTransactionPg pg = do
-  SqlEnv { .. } <- asks extract
+  SqlEnv { .. } <- ask
   liftIO $ PGS.withTransaction conn $ runBeamPostgresDebug stmtLogger conn pg
 
 runPg :: SqlMonad r m => Pg a -> m a
 runPg pg = do
-  SqlEnv { .. } <- asks extract
+  SqlEnv { .. } <- ask
   liftIO $ runBeamPostgresDebug stmtLogger conn pg
 
 inReader :: MonadReader r mr => (m a -> mr b) -> ReaderT r m a -> mr b
-inReader runner act = ask >>= \env -> runner $ runReaderT act env
+inReader runner act = R.ask >>= \env -> runner $ runReaderT act env

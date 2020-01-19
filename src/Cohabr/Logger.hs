@@ -3,7 +3,6 @@
 module Cohabr.Logger where
 
 import Control.Monad.IO.Class
-import Control.Monad.Reader
 import Control.Monad.Reader.Has
 import GHC.Stack
 
@@ -17,4 +16,4 @@ newtype LoggerHolder = LoggerHolder { getLogger :: Logger }
 type LoggerMonad r m = (MonadReader r m, Has LoggerHolder r, MonadIO m)
 
 writeLog :: (HasCallStack, LoggerMonad r m) => LogMessageContext -> String -> m ()
-writeLog ctx str = reader (getLogger . extract) >>= \l -> l ctx str
+writeLog ctx str = reader getLogger >>= \l -> l ctx str
