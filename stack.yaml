@@ -1,11 +1,13 @@
-resolver: lts-14.16
+resolver: lts-16.9
 packages:
 - .
 extra-deps:
-- can-i-haz-0.3.1.0
+- dependent-map-0.2.4.0
+- dependent-sum-0.5
 - dom-selector-0.2.0.1
 - fixed-timestep-0.2.0.1
-- monad-metrics-extensible-0.1.0.0
+- monad-metrics-extensible-0.1.0.1
+- tz-0.1.3.4
 - github: haskell-beam/beam
   commit: 84cac6dff45921ba51720444fd7d429dfbcebace
   subdirs:

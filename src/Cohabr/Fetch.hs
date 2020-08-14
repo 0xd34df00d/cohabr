@@ -203,9 +203,6 @@ shallUpdate now UpdateInfo { .. } = checkDiff > thresholdFor lastModificationDif
     checkDiff = now `diffLocalTime` lastQueried
     lastModificationDiff = now `diffLocalTime` published
 
-diffLocalTime :: LocalTime -> LocalTime -> NominalDiffTime
-diffLocalTime a b = diffUTCTime (localTimeToUTC utc a) (localTimeToUTC utc b)
-
 thresholdFor :: NominalDiffTime -> NominalDiffTime
 thresholdFor dt | dt < 5 * minute = 2 * minute
                 | dt < 30 * minute = 3 * minute
