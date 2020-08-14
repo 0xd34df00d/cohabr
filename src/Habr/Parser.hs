@@ -41,9 +41,9 @@ type ParseError = [String]
 throwParseError :: MonadError ParseError m => String -> m a
 throwParseError = throwError . pure
 
-type MonadParseContextError m = (MonadReader ParseContext m, MonadError ParseError m)
+type MonadParseContextful m = (MonadReader ParseContext m, MonadError ParseError m)
 
-parsePost :: MonadParseContextError m => Cursor -> m Post
+parsePost :: MonadParseContextful m => Cursor -> m Post
 parsePost root = do
   postType <- derivePostType root
   title <- T.strip <$> root @>. [jq|span.post__title-text|]
@@ -111,7 +111,7 @@ parseLink root = case runExcept $ root @> [jq|a.post__translatation-link|] of
   where textPrefix = "Автор оригинала: "
 
 -- TODO migrate to Data.Time.Format.ISO8601 once time-1.9 is available in LTS
-parsePostTime :: MonadParseContextError m => Cursor -> m LocalTime
+parsePostTime :: MonadParseContextful m => Cursor -> m LocalTime
 parsePostTime root = root @>. [jq|.post__time|] >>= parseHumanReadableTimestamp
 
 parsePostStats :: MonadError ParseError m => Cursor -> m PostStats
@@ -127,7 +127,7 @@ readApproxInt str | (ts, [',', hs, 'k']) <- commaBreak = pure $ read ts * 1000 +
                   | otherwise = throwParseError [i|#{str} is not in approximate format|]
   where commaBreak = break (== ',') str
 
-parseComments :: MonadParseContextError m => Cursor -> m Comments
+parseComments :: MonadParseContextful m => Cursor -> m Comments
 parseComments root = buildCommentsTree <$> mapM parseSingleComment (queryT [jq| .js-comment |] root)
 
 (@@) :: MonadError ParseError m => Cursor -> Name -> m T.Text
@@ -147,14 +147,14 @@ cur @> expr | (sub:_) <- queryT expr cur = pure sub
 (@>.) :: MonadError ParseError m => Cursor -> [JQSelector] -> m T.Text
 cur @>. expr = TL.toStrict . innerHtml <$> cur @> expr
 
-parseSingleComment :: MonadParseContextError m => Cursor -> m Comment
+parseSingleComment :: MonadParseContextful m => Cursor -> m Comment
 parseSingleComment cur = do
   parentId <- cur @> [jq| span.parent_id |] @@^ "data-parent_id" >>= readInt
   commentId <- cur @@ "rel" >>= readInt
   contents <- cur @> [jq|div.comment|] >>= parseCommentContents
   pure Comment { .. }
 
-parseCommentContents :: MonadParseContextError m => Cursor -> m CommentContents
+parseCommentContents :: MonadParseContextful m => Cursor -> m CommentContents
 parseCommentContents cur = runExceptT (parseExisting <|> parseDeleted) >>= liftEither
   where
     parseExisting = do
@@ -184,10 +184,10 @@ parseVotes cur = do
   neg <- readInt $ T.tail negStr
   pure Votes { .. }
 
-parseCommentTimestamp :: MonadParseContextError m => Cursor -> m LocalTime
+parseCommentTimestamp :: MonadParseContextful m => Cursor -> m LocalTime
 parseCommentTimestamp cur = cur @>. [jq|time|] >>= parseHumanReadableTimestamp
 
-parseHumanReadableTimestamp :: MonadParseContextError m => T.Text -> m LocalTime
+parseHumanReadableTimestamp :: MonadParseContextful m => T.Text -> m LocalTime
 parseHumanReadableTimestamp text = parse $ T.unpack <$> T.words text
   where
     parse [marker, _, timeStr] = do
