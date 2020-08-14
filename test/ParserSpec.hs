@@ -77,7 +77,7 @@ spec = beforeAll_ fetchPages $ do
                          ]
       postStats `shouldBe` PostStats
                            { votes = Votes 27 21
-                           , views = PostViews False 13300
+                           , views = PostViews False 14200
                            }
   where
     trimText = transformBi $ \case
