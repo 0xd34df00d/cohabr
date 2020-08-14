@@ -41,7 +41,7 @@ type ParseError = [String]
 throwParseError :: MonadError ParseError m => String -> m a
 throwParseError = throwError . pure
 
-type MonadParseContextful m = (MonadFail m, MonadReader ParseContext m, MonadError ParseError m)
+type MonadParseContextful m = (MonadReader ParseContext m, MonadError ParseError m)
 
 parsePost :: MonadParseContextful m => Cursor -> m Post
 parsePost root = do
@@ -198,7 +198,9 @@ parseHumanReadableTimestamp text = parse $ T.unpack <$> T.words text
                    _         -> throwParseError [i|unknown date marker `#{marker}`|]
       curDay <- reader $ localDay . currentTime
       pure LocalTime { localDay = addDays diff curDay, localTimeOfDay = time }
-    parse ws = parseTimeM False locale "%e %B %Y в %H:%M" $ unwords ws
+    parse ws = case parseTimeM False locale "%e %B %Y в %H:%M" $ unwords ws of
+                    Just res -> pure res
+                    Nothing -> throwParseError [i|unable to parse `#{unwords ws}`|]
 
     -- TODO use DiffTime parsing instance when time-1.9 is available in LTS
     parseTime [h1, h2, ':', m1, m2] = pure $ timeToTimeOfDay $ secondsToDiffTime $ read [h1, h2] * 3600 + read [m1, m2] * 60
