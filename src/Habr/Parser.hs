@@ -41,7 +41,7 @@ type ParseError = [String]
 throwParseError :: MonadError ParseError m => String -> m a
 throwParseError = throwError . pure
 
-type MonadParseContextful m = (MonadReader ParseContext m, MonadError ParseError m)
+type MonadParseContextful m = (MonadFail m, MonadReader ParseContext m, MonadError ParseError m)
 
 parsePost :: MonadParseContextful m => Cursor -> m Post
 parsePost root = do
